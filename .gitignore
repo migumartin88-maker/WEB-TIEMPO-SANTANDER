@@ -1,3 +1,44 @@
+# Astro build output and local dependencies
 node_modules/
 dist/
 .astro/
+
+# Local environment variables and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+.envrc
+.direnv/
+.npmrc
+!.npmrc.example
+.netrc
+credentials.json
+secrets.json
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa
+id_ed25519
+
+# Local Codex credentials
+.codex/auth.json
+.codex/credentials.json
+.codex/config.local.toml
+
+# Operating system and package manager noise
+.DS_Store
+Thumbs.db
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+.env
+.env*.local
+node_modules/
+.agents/
+.codex/
