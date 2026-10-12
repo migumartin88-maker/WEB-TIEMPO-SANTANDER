@@ -1,0 +1,100 @@
+---
+const year = new Date().getFullYear();
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f5f1" />
+    <meta name="description" content="Qué ropa ponerte hoy en Santander según el tiempo actual." />
+    <title>¿Qué me pongo? — Santander</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root{font-family:'DM Sans',sans-serif;color:#202a2a;background:#f6f5f1;font-synthesis:none;text-rendering:optimizeLegibility}*{box-sizing:border-box}body{margin:0;min-height:100vh}.shell{max-width:1080px;margin:auto;padding:28px 36px 24px}.topbar{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #deded8;padding-bottom:21px}.brand{font:800 18px Manrope,sans-serif;letter-spacing:-.7px}.brand span{color:#337467}.place{font-size:13px;color:#687271;display:flex;gap:7px;align-items:center}.pin{width:8px;height:8px;background:#e47d58;border-radius:50%}.layout{display:grid;grid-template-columns:1.05fr .95fr;gap:24px;margin-top:28px}.panel{background:#fff;border:1px solid #e9e8e1;border-radius:18px;padding:28px}.eyebrow{text-transform:uppercase;letter-spacing:1.5px;font-weight:700;font-size:10px;color:#74807b}.headline{font:700 clamp(27px,4vw,40px)/1.13 Manrope,sans-serif;letter-spacing:-1.8px;margin:10px 0 5px}.sub{color:#78817d;font-size:13px;margin:0}.weather{margin-top:30px;display:flex;align-items:center;gap:19px}.icon{font-size:48px;line-height:1}.temp{font:700 66px/.95 Manrope,sans-serif;letter-spacing:-4px}.temp small{font:500 24px Manrope;vertical-align:top;letter-spacing:-1px}.condition{font-size:15px;font-weight:600;margin-top:7px}.feels{font-size:12px;color:#7a8580;margin-top:4px}.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #efeee9;margin-top:27px;padding-top:19px;gap:12px}.stat-label{font-size:11px;color:#87908c;margin-bottom:7px}.stat-value{font-size:14px;font-weight:600}.recommend{background:#e9f1eb;border-color:#e1ebe3}.rec-title{font:700 23px Manrope,sans-serif;letter-spacing:-.7px;margin:10px 0 9px}.rec-copy{color:#65746c;font-size:13px;line-height:1.55;margin:0}.outfit{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:23px}.item{background:#fff;border:1px solid #e4e9e2;border-radius:12px;padding:13px 11px;min-height:102px}.item-icon{font-size:22px}.item-name{font-size:11px;color:#78827d;margin-top:12px}.item-desc{font-size:12px;font-weight:700;margin-top:3px}.notice{display:flex;gap:10px;align-items:flex-start;border-top:1px solid #d9e5dc;margin-top:19px;padding-top:15px;color:#5c7066;font-size:12px;line-height:1.5}.notice b{font-size:16px}.lower{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}.small-panel{padding:20px 23px}.small-title{font:700 14px Manrope,sans-serif}.forecast{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:17px}.day{text-align:center;border-right:1px solid #efeee9}.day:last-child{border:0}.day-name{font-size:10px;color:#89918d}.day-icon{font-size:18px;margin:8px 0}.day-temps{font-size:12px;font-weight:600}.day-temps span{color:#9aa19d;font-weight:400;margin-left:4px}.refreshrow{display:flex;align-items:center;justify-content:space-between;margin-top:16px}.updated{font-size:11px;color:#89918d}.refresh{border:1px solid #dcded7;background:#fff;border-radius:8px;padding:8px 11px;color:#354b45;font:600 11px inherit;cursor:pointer}.refresh:hover{background:#f1f5f1}.tips{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:10px}.tips li{display:flex;gap:10px;font-size:12px;color:#6c7772;line-height:1.4}.tips li span{color:#438071;font-weight:700}.footer{display:flex;justify-content:space-between;color:#9aa19d;font-size:10px;margin-top:27px}.loading{color:#78817d;font-size:13px}.error{color:#a64d39;font-size:12px;margin-top:12px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:720px){.shell{padding:20px 17px}.layout,.lower{grid-template-columns:1fr;gap:14px}.layout{margin-top:20px}.panel{padding:22px}.lower{margin-top:14px}.topbar{padding-bottom:17px}.brand{font-size:16px}.weather{margin-top:23px}.stats{margin-top:22px}.footer{margin-top:20px}}@media(max-width:360px){.outfit{gap:6px}.item{padding:10px 8px}.item-desc{font-size:11px}}
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">¿Qué me <span>pongo?</span></div>
+        <div class="place"><i class="pin"></i> Santander, Cantabria</div>
+      </header>
+
+      <section class="layout" aria-label="El tiempo y tu recomendación">
+        <article class="panel">
+          <div class="eyebrow" id="today">AHORA EN SANTANDER</div>
+          <h1 class="headline">Vístete para el día<br />que tienes delante.</h1>
+          <p class="sub">Una recomendación sencilla según el tiempo de hoy.</p>
+          <div id="weather" class="weather" aria-live="polite"><div class="loading">Consultando el tiempo de Santander…</div></div>
+          <div id="stats" class="stats" hidden></div>
+          <div id="error" class="error" role="status"></div>
+          <div class="refreshrow"><span class="updated" id="updated">Datos meteorológicos en directo</span><button class="refresh" id="refresh" type="button">↻ &nbsp;Actualizar</button></div>
+        </article>
+
+        <article class="panel recommend">
+          <div class="eyebrow">TU ROPA DE HOY</div>
+          <h2 class="rec-title" id="recTitle">Preparando tu conjunto…</h2>
+          <p class="rec-copy" id="recCopy">En cuanto tengamos el tiempo, te diremos qué llevar.</p>
+          <div class="outfit" id="outfit"></div>
+          <div class="notice" id="notice"><b>✦</b><span>La costa puede cambiar de tiempo rápido. Echa un vistazo antes de salir.</span></div>
+        </article>
+      </section>
+
+      <section class="lower" aria-label="Previsión y consejos">
+        <article class="panel small-panel">
+          <div class="small-title">Próximos días</div>
+          <div id="forecast" class="forecast"><span class="loading">Cargando previsión…</span></div>
+        </article>
+        <article class="panel small-panel">
+          <div class="small-title">Un par de pistas</div>
+          <ul class="tips">
+            <li><span>↗</span> Capas finas: fáciles de quitar si sale el sol.</li>
+            <li><span>☂</span> Con lluvia o viento, mejor una chaqueta impermeable.</li>
+            <li><span>⌁</span> La sensación térmica cuenta más que el número.</li>
+          </ul>
+        </article>
+      </section>
+      <footer class="footer"><span>Tiempo actual y previsión para Santander</span><span>Fuente: Open-Meteo · <span id="year"></span></span></footer>
+    </main>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const weatherCodes = {0:['☀️','Despejado'],1:['🌤️','Mayormente despejado'],2:['⛅','Parcialmente nuboso'],3:['☁️','Nuboso'],45:['🌫️','Niebla'],48:['🌫️','Niebla'],51:['🌦️','Llovizna ligera'],53:['🌦️','Llovizna'],55:['🌧️','Llovizna intensa'],61:['🌦️','Lluvia ligera'],63:['🌧️','Lluvia'],65:['🌧️','Lluvia intensa'],71:['🌨️','Nieve ligera'],73:['❄️','Nieve'],75:['❄️','Nieve intensa'],80:['🌦️','Chubascos suaves'],81:['🌧️','Chubascos'],82:['🌧️','Chubascos fuertes'],95:['⛈️','Tormenta'],96:['⛈️','Tormenta con granizo'],99:['⛈️','Tormenta intensa']};
+      function advice(t, rain, wind, code) {
+        let title, copy, items;
+        if (t < 8) { title='Abrígate bien'; copy='Hace frío de verdad. El viento puede hacer que se sienta aún más fresco.'; items=[['🧥','Abrigo','calentito'],['🧣','Bufanda','y algo al cuello'],['👖','Pantalón','largo']]; }
+        else if (t < 14) { title='Mejor con una capa extra'; copy='Temperatura fresca, muy de costa. Una capa ligera te vendrá bien.'; items=[['🧥','Chaqueta','ligera'],['👕','Capa interior','de manga larga'],['👖','Pantalón','largo']]; }
+        else if (t < 20) { title='Cómodo, con chaqueta a mano'; copy='Buen tiempo para vestirse por capas y adaptarse a los cambios del día.'; items=[['🧶','Capa ligera','sudadera o punto'],['👕','Camiseta','o manga larga'],['👟','Calzado','cómodo']]; }
+        else { title='Ropa ligera'; copy='Temperatura agradable. Elige prendas frescas y lleva algo fino por si refresca.'; items=[['👕','Camiseta','transpirable'],['🧥','Chaqueta fina','por si acaso'],['🕶️','Gafas de sol','si se abre']]; }
+        let alert='La costa puede cambiar de tiempo rápido. Echa un vistazo antes de salir.';
+        if (rain > 25 || [51,53,55,61,63,65,80,81,82,95,96,99].includes(code)) { title=rain > 25 ? 'Saca el paraguas al salir' : 'No olvides el impermeable'; copy=rain > 25 ? `La probabilidad de lluvia supera el 25% en las próximas 3 horas (${Math.round(rain)}%).` : 'Parece que está lloviendo. Una capa impermeable y calzado cerrado te harán el día más fácil.'; items[0]=['☂️','Paraguas','llévalo contigo']; items[2]=['👟','Calzado cerrado','que no cale']; alert=rain > 25 ? `En algún momento de las próximas 3 horas la probabilidad de lluvia alcanza el ${Math.round(rain)}%. Mejor salir con paraguas.` : 'Parece que está lloviendo ahora. Si puedes, lleva paraguas compacto.'; }
+        else if (wind >= 30) { alert='Sopla el viento: una chaqueta que cierre bien te ayudará en el paseo.'; }
+        return {title,copy,items,alert};
+      }
+      async function loadWeather() {
+        $('error').textContent=''; $('weather').innerHTML='<div class="loading">Consultando el tiempo de Santander…</div>';
+        const url='https://api.open-meteo.com/v1/forecast?latitude=43.4623&longitude=-3.80998&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FMadrid&forecast_days=4';
+        try {
+          const res=await fetch(url); if(!res.ok) throw new Error('No se pudo consultar el servicio meteorológico.');
+          const data=await res.json(), c=data.current, code=c.weather_code, info=weatherCodes[code]||['🌥️','Tiempo variable'];
+          $('weather').innerHTML=`<div class="icon" aria-hidden="true">${info[0]}</div><div><div class="temp">${Math.round(c.temperature_2m)}<small>°</small></div><div class="condition">${info[1]}</div><div class="feels">Sensación de ${Math.round(c.apparent_temperature)}°</div></div>`;
+          $('stats').hidden=false;
+          $('stats').innerHTML=`<div><div class="stat-label">MÁXIMA</div><div class="stat-value">${Math.round(data.daily.temperature_2m_max[0])}°</div></div><div><div class="stat-label">LLUVIA AHORA</div><div class="stat-value">${c.precipitation} mm</div></div><div><div class="stat-label">VIENTO</div><div class="stat-value">${Math.round(c.wind_speed_10m)} km/h</div></div>`;
+          const start=Date.parse(`${c.time}Z`), end=start+3*60*60*1000;
+          const nextHours=data.hourly.time.map((time,i)=>({time:Date.parse(`${time}Z`),probability:data.hourly.precipitation_probability[i]})).filter(({time})=>time>=start&&time<=end);
+          const rain=Math.max(0,...nextHours.map(({probability})=>probability??0));
+          const rec=advice(c.apparent_temperature,rain,c.wind_speed_10m,code);
+          $('recTitle').textContent=rec.title; $('recCopy').textContent=rec.copy;
+          $('outfit').innerHTML=rec.items.map(([icon,name,desc])=>`<div class="item"><div class="item-icon">${icon}</div><div class="item-name">${name}</div><div class="item-desc">${desc}</div></div>`).join('');
+          $('notice').innerHTML=`<b>✦</b><span>${rec.alert}</span>`;
+          $('forecast').innerHTML=data.daily.time.slice(1,4).map((date,i)=>{const d=new Date(`${date}T12:00:00`), label=new Intl.DateTimeFormat('es-ES',{weekday:'short'}).format(d).replace('.',''); const f=weatherCodes[data.daily.weather_code[i+1]]||['🌥️','']; return `<div class="day"><div class="day-name">${label}</div><div class="day-icon" title="${f[1]}">${f[0]}</div><div class="day-temps">${Math.round(data.daily.temperature_2m_max[i+1])}° <span>${Math.round(data.daily.temperature_2m_min[i+1])}°</span></div></div>`}).join('');
+          $('updated').textContent='Actualizado a las '+new Intl.DateTimeFormat('es-ES',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Madrid'}).format(new Date(c.time));
+        } catch(e) { $('weather').innerHTML='<div class="loading">No se pudo cargar el tiempo.</div>'; $('forecast').textContent='Previsión no disponible.'; $('error').textContent='Comprueba tu conexión y vuelve a intentarlo.'; $('recTitle').textContent='Vístete por capas'; $('recCopy').textContent='Una opción práctica mientras recuperamos el tiempo actual.'; }
+      }
+      $('today').textContent=new Intl.DateTimeFormat('es-ES',{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/Madrid'}).format(new Date()).toLocaleUpperCase('es-ES');
+      $('year').textContent=new Date().getFullYear(); $('refresh').addEventListener('click',loadWeather); loadWeather();
+    </script>
+  </body>
+</html>

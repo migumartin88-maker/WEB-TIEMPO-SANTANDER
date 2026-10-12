@@ -1,0 +1,4 @@
+interface:
+  display_name: "Paraguas"
+  short_description: "Crea una web Astro de recomendaciones de ropa según el tiempo"
+  default_prompt: "Crea o adapta una web estática con Astro que recomiende qué ropa ponerse según el tiempo actual de la ciudad indicada."
