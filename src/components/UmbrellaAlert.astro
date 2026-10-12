@@ -12,7 +12,7 @@ const {
   latitude = 43.4623,
   longitude = -3.80998,
   timezone = 'Europe/Madrid',
-  threshold = 30,
+  threshold = 50,
 } = Astro.props;
 ---
 
@@ -40,7 +40,7 @@ const {
     <span class="probability-label">probabilidad máxima<br />en las próximas 3 horas</span>
   </div>
 
-  <p class="threshold-note" data-threshold-note>El umbral para llevar paraguas es del 30%.</p>
+  <p class="threshold-note" data-threshold-note>El umbral para llevar paraguas es del {threshold}%.</p>
   <p class="decision-error" data-error hidden>No se pudo consultar la previsión. Comprueba tu conexión e inténtalo de nuevo.</p>
 
   <div class="decision-footer">
@@ -57,7 +57,7 @@ const {
     const latitude = decision.dataset.latitude ?? '43.4623';
     const longitude = decision.dataset.longitude ?? '-3.80998';
     const timezone = decision.dataset.timezone ?? 'Europe/Madrid';
-    const threshold = Number(decision.dataset.threshold ?? 30);
+    const threshold = Number(decision.dataset.threshold ?? 50);
     const verdict = decision.querySelector('[data-verdict]');
     const copy = decision.querySelector('[data-copy]');
     const umbrellaIcon = decision.querySelector('[data-umbrella-icon]');
