@@ -2,77 +2,57 @@
 import Analytics from '@vercel/analytics/astro';
 import { inject } from '@vercel/analytics';
 inject();
-import UmbrellaAlert from '../components/UmbrellaAlert.astro';
+import WeatherDecision from '../components/WeatherDecision.astro';
 ---
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f6f5f1" />
-    <meta name="description" content="Comprueba si necesitas paraguas en Santander según la lluvia prevista para las próximas tres horas." />
-    <title>¿Lloverá? — Santander</title>
+    <meta name="theme-color" content="#f2f4ef" />
+    <meta name="description" content="Consulta la probabilidad de lluvia y el viento en Santander. Decide si hoy te conviene llevar paraguas o chubasquero." />
+    <title>¿Va a llover hoy en Santander? | Lluvia y viento</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
         font-family: 'DM Sans', sans-serif;
-        color: #202a2a;
-        background: #f6f5f1;
+        color: #1d302d;
+        background: #f2f4ef;
         font-synthesis: none;
         text-rendering: optimizeLegibility;
       }
 
       * { box-sizing: border-box; }
-      body { min-width: 320px; min-height: 100vh; margin: 0; }
-      main { display: flex; min-height: 100vh; flex-direction: column; padding: 24px; }
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        background-image: radial-gradient(#dce5dc 0.7px, transparent 0.7px);
+        background-size: 19px 19px;
+      }
 
-      header {
+      main {
         display: flex;
-        width: min(100%, 1040px);
-        align-items: center;
-        justify-content: space-between;
-        margin: 0 auto;
-        padding: 4px 0 20px;
-        border-bottom: 1px solid #deded8;
+        min-height: 100vh;
+        flex-direction: column;
+        padding: 0 28px;
       }
 
-      .brand { margin: 0; font: 800 clamp(30px, 4vw, 40px)/1 'Manrope', sans-serif; letter-spacing: -1.6px; }
-      .place { color: #337467; font: 700 clamp(24px, 3.2vw, 32px)/1 'Manrope', sans-serif; letter-spacing: -1px; }
-      .content { display: grid; flex: 1; place-items: center; padding: 34px 0; }
+      .content { display: grid; flex: 1; place-items: center; padding: 42px 0; }
 
-      footer {
-        width: min(100%, 1040px);
-        margin: 0 auto;
-        padding-top: 16px;
-        border-top: 1px solid #deded8;
-        color: #929b95;
-        font-size: 11px;
-        text-align: center;
-      }
-
-      @media (max-width: 480px) {
-        main { padding: 17px; }
-        .content { padding: 24px 0; }
-        header { padding-bottom: 16px; }
-        .brand { font-size: 28px; }
-        .place { font-size: 22px; }
+      @media (max-width: 560px) {
+        main { padding: 0 18px; }
+        .content { padding: 30px 0; }
       }
     </style>
   </head>
   <body>
     <main>
-      <header>
-        <div class="brand">¿Lloverá?</div>
-        <div class="place">Santander</div>
-      </header>
-
       <div class="content">
-        <UmbrellaAlert city="Santander" threshold={50} />
+        <WeatherDecision city="Santander" threshold={40} windThreshold={39} gustThreshold={50} strongWindThreshold={50} />
       </div>
-
-      <footer>Decisión basada en la probabilidad máxima de lluvia de las próximas tres horas · Open-Meteo</footer>
     </main>
 <Analytics />
   </body>

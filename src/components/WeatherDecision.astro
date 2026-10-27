@@ -1,0 +1,546 @@
+---
+interface Props {
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
+  threshold?: number;
+  windThreshold?: number;
+  gustThreshold?: number;
+  strongWindThreshold?: number;
+}
+
+const {
+  city = 'Santander',
+  latitude = 43.4623,
+  longitude = -3.80998,
+  timezone = 'Europe/Madrid',
+  threshold = 40,
+  windThreshold = 39,
+  gustThreshold = 50,
+  strongWindThreshold = 50,
+} = Astro.props;
+---
+
+<section
+  class="weather-panel weather-panel--loading"
+  data-weather-panel
+  data-city={city}
+  data-latitude={latitude}
+  data-longitude={longitude}
+  data-timezone={timezone}
+  data-threshold={threshold}
+  data-wind-threshold={windThreshold}
+  data-gust-threshold={gustThreshold}
+  data-strong-wind-threshold={strongWindThreshold}
+>
+  <h1 class="visually-hidden">¿Va a llover hoy en Santander?</h1>
+  <div class="current-weather" aria-label="Tiempo actual">
+      <span class="current-icon" data-current-icon aria-hidden="true">☁️</span>
+      <div>
+        <strong class="current-temperature" data-temperature>--°</strong>
+        <span class="current-condition" data-condition>Consultando</span>
+      </div>
+  </div>
+
+  <div class="recommendation" data-recommendation aria-live="polite" aria-atomic="true">
+    <img class="recommendation-illustration" data-recommendation-image src="/images/weather-clear.svg" alt="" hidden />
+    <div class="recommendation-main">
+      <p class="recommendation-label" data-recommendation-label>DECISIÓN PARA LAS PRÓXIMAS 3 HORAS</p>
+      <h2 data-verdict>Consultando el tiempo</h2>
+      <p class="recommendation-copy" data-copy>Un momento, estamos revisando la lluvia y el viento.</p>
+    </div>
+    <button class="refresh" data-refresh type="button" aria-label="Actualizar previsión">
+      <span aria-hidden="true">↻</span> Actualizar
+    </button>
+  </div>
+
+  <div class="interval-control">
+    <div class="interval-heading">
+      <label class="interval-field" for="range-start">
+        <span>Inicio</span>
+        <select id="range-start" data-range-start aria-label="Hora de inicio">
+          <option value="">Elige una hora</option>
+        </select>
+      </label>
+      <label class="interval-field" for="range-end">
+        <span>Fin</span>
+        <select id="range-end" data-range-end aria-label="Hora de fin">
+          <option value="">Elige una hora</option>
+        </select>
+      </label>
+    </div>
+    <div class="interval-status">
+      <output data-duration>Elige inicio y fin</output>
+      <span class="updated" data-updated role="status">Actualizando datos</span>
+    </div>
+    <p class="interval-note">Elige horas completas, hasta 12 horas desde la consulta.</p>
+  </div>
+
+  <dl class="conditions" aria-label="Resumen meteorológico">
+    <div class="condition">
+      <dt title="Verde: menos del 40%. Amarillo: 40-69%. Rojo: 70% o más.">PROBABILIDAD MÁXIMA</dt>
+      <dd class="risk-value" data-rain data-risk="green">--%</dd>
+    </div>
+    <div class="condition">
+      <dt title="Verde: menos de 20 km/h. Amarillo: 20-38 km/h. Rojo: 39 km/h o más.">VIENTO MEDIO MÁXIMO</dt>
+      <dd class="risk-value" data-wind data-risk="green">-- km/h</dd>
+    </div>
+    <div class="condition">
+      <dt title="Verde: menos de 40 km/h. Amarillo: 40-49 km/h. Rojo: 50 km/h o más.">RACHA MÁXIMA</dt>
+      <dd class="risk-value" data-gust data-risk="green">-- km/h</dd>
+    </div>
+  </dl>
+  <div class="risk-legend" aria-label="Leyenda de colores">
+    <span><i class="risk-dot risk-dot--green"></i>Bajo</span>
+    <span><i class="risk-dot risk-dot--yellow"></i>Moderado</span>
+    <span><i class="risk-dot risk-dot--red"></i>Alto</span>
+  </div>
+
+  <p class="criteria-note">La recomendación combina probabilidad de lluvia, viento medio y rachas.</p>
+
+  <p class="error-message" data-error role="status" hidden>No se pudo cargar la previsión. Comprueba tu conexión e inténtalo de nuevo.</p>
+</section>
+
+<script>
+  document.querySelectorAll('[data-weather-panel]').forEach((panel) => {
+    const city = panel.dataset.city ?? 'Santander';
+    const latitude = panel.dataset.latitude ?? '43.4623';
+    const longitude = panel.dataset.longitude ?? '-3.80998';
+    const timezone = panel.dataset.timezone ?? 'Europe/Madrid';
+    const rainThreshold = Number(panel.dataset.threshold ?? 40);
+    const windThreshold = Number(panel.dataset.windThreshold ?? 39);
+    const gustThreshold = Number(panel.dataset.gustThreshold ?? 50);
+    const strongWindThreshold = Number(panel.dataset.strongWindThreshold ?? 50);
+    const verdict = panel.querySelector('[data-verdict]');
+    const recommendation = panel.querySelector('[data-recommendation]');
+    const recommendationLabel = panel.querySelector('[data-recommendation-label]');
+    const recommendationImage = panel.querySelector('[data-recommendation-image]');
+    const copy = panel.querySelector('[data-copy]');
+    const rain = panel.querySelector('[data-rain]');
+    const wind = panel.querySelector('[data-wind]');
+    const gust = panel.querySelector('[data-gust]');
+    const temperature = panel.querySelector('[data-temperature]');
+    const condition = panel.querySelector('[data-condition]');
+    const currentIcon = panel.querySelector('[data-current-icon]');
+    const updated = panel.querySelector('[data-updated]');
+    const error = panel.querySelector('[data-error]');
+    const refresh = panel.querySelector('[data-refresh]');
+    const startInput = panel.querySelector('[data-range-start]');
+    const endInput = panel.querySelector('[data-range-end]');
+    const duration = panel.querySelector('[data-duration]');
+    let latestForecast;
+
+    function showRecommendationImage(file, description) {
+      recommendationImage.src = `/images/${file}`;
+      recommendationImage.alt = description;
+      recommendationImage.hidden = false;
+    }
+
+    function hourlyAdvice(hour) {
+      const rainIsRelevant = Number.isFinite(hour.rain) && hour.rain >= rainThreshold;
+      if (!rainIsRelevant) return { level: 0, label: 'Sin equipo', kind: 'none' };
+
+      const meanWind = Number.isFinite(hour.wind) ? hour.wind : 0;
+      const gustWind = Number.isFinite(hour.gust) ? hour.gust : 0;
+      if (meanWind >= strongWindThreshold) return { level: 4, label: 'Chubasquero · viento fuerte', kind: 'coat' };
+      if (meanWind >= windThreshold || gustWind >= gustThreshold) return { level: 3, label: 'Chubasquero', kind: 'coat' };
+      if (meanWind >= 20) return { level: 2, label: 'Paraguas antiviento', kind: 'reinforced' };
+      return { level: 1, label: 'Paraguas', kind: 'umbrella' };
+    }
+
+    function setRiskLevel(element, value, greenLimit, yellowLimit) {
+      element.dataset.risk = value < greenLimit ? 'green' : value < yellowLimit ? 'yellow' : 'red';
+    }
+
+    function configureTimeInputs(forecast) {
+      const hourlyTimes = forecast.hourly.time;
+      const availableStartIndex = hourlyTimes.findIndex((time) => time >= forecast.current.time);
+      if (availableStartIndex < 0) throw new Error('Hourly forecast unavailable');
+
+      const currentMinute = Number(forecast.current.time.slice(14, 16));
+      const maxEndIndex = Math.min(
+        hourlyTimes.length - 1,
+        availableStartIndex + (currentMinute === 0 ? 12 : 11),
+      );
+      const maxStartIndex = maxEndIndex - 1;
+      if (maxStartIndex < availableStartIndex) throw new Error('12-hour forecast window unavailable');
+
+      const previousStart = startInput.value;
+      const previousEnd = endInput.value;
+      const addOptions = (select, firstIndex, lastIndex, selectedValue) => {
+        const options = [new Option('Elige una hora', '')];
+        for (let index = firstIndex; index <= lastIndex; index += 1) {
+          options.push(new Option(hourlyTimes[index].slice(11, 16), hourlyTimes[index]));
+        }
+        select.replaceChildren(...options);
+        if (options.some((option) => option.value === selectedValue)) select.value = selectedValue;
+      };
+
+      addOptions(startInput, availableStartIndex, maxStartIndex, previousStart);
+      let selectedStartIndex = hourlyTimes.indexOf(startInput.value);
+      if (selectedStartIndex < 0) {
+        selectedStartIndex = availableStartIndex;
+        startInput.value = hourlyTimes[selectedStartIndex];
+      }
+
+      addOptions(endInput, selectedStartIndex + 1, maxEndIndex, previousEnd);
+      let selectedEndIndex = hourlyTimes.indexOf(endInput.value);
+      if (selectedEndIndex < selectedStartIndex + 1 || selectedEndIndex > maxEndIndex) {
+        selectedEndIndex = Math.min(selectedStartIndex + 3, maxEndIndex);
+        endInput.value = hourlyTimes[selectedEndIndex];
+      }
+
+      return { selectedStartIndex, selectedEndIndex };
+    }
+
+    function renderForecast(forecast) {
+      const { selectedStartIndex, selectedEndIndex } = configureTimeInputs(forecast);
+      const nextHours = forecast.hourly.time.slice(selectedStartIndex, selectedEndIndex).map((time, index) => ({
+        time,
+        rain: forecast.hourly.precipitation_probability[selectedStartIndex + index],
+        wind: forecast.hourly.wind_speed_10m[selectedStartIndex + index],
+        gust: forecast.hourly.wind_gusts_10m[selectedStartIndex + index],
+      }));
+      const hoursAway = selectedEndIndex - selectedStartIndex;
+      const rainValues = nextHours.map(({ rain: value }) => value).filter(Number.isFinite);
+      const windValues = nextHours.map(({ wind: value }) => value).filter(Number.isFinite);
+      const gustValues = nextHours.map(({ gust: value }) => value).filter(Number.isFinite);
+      if (!nextHours.length || !rainValues.length || !windValues.length) throw new Error('Hourly forecast unavailable');
+
+      const maxRain = Math.max(...rainValues);
+      const maxWind = Math.max(...windValues);
+      const maxGust = gustValues.length ? Math.max(...gustValues) : maxWind;
+      const mostRelevantAdvice = nextHours
+        .map((hour) => ({ hour, advice: hourlyAdvice(hour) }))
+        .sort((first, second) => second.advice.level - first.advice.level)[0];
+
+      panel.classList.remove('weather-panel--loading');
+      panel.classList.toggle('weather-panel--rain', mostRelevantAdvice.advice.level > 0);
+      panel.classList.toggle('weather-panel--wind', mostRelevantAdvice.advice.level >= 3);
+      temperature.textContent = `${Math.round(forecast.current.temperature_2m)}°`;
+      condition.textContent = weatherLabel(forecast.current.weather_code);
+      currentIcon.textContent = weatherIcon(forecast.current.weather_code);
+      rain.textContent = `${Math.round(maxRain)}%`;
+      wind.textContent = `${Math.round(maxWind)} km/h`;
+      gust.textContent = `${Math.round(maxGust)} km/h`;
+      setRiskLevel(rain, maxRain, 40, 70);
+      setRiskLevel(wind, maxWind, 20, 39);
+      setRiskLevel(gust, maxGust, 40, 50);
+      const firstHour = forecast.hourly.time[selectedStartIndex];
+      const endBoundary = forecast.hourly.time[selectedEndIndex];
+      duration.textContent = `${firstHour?.slice(11, 16) ?? '--:--'}–${endBoundary?.slice(11, 16) ?? '--:--'} · ${hoursAway} h`;
+      recommendationLabel.textContent = `DECISIÓN DE ${firstHour?.slice(11, 16) ?? '--:--'} A ${endBoundary?.slice(11, 16) ?? '--:--'}`;
+      if (mostRelevantAdvice.advice.level >= 3) {
+        verdict.textContent = mostRelevantAdvice.advice.level === 4 ? 'Chubasquero y precaución' : 'Mejor un chubasquero';
+        copy.textContent = mostRelevantAdvice.advice.level === 4
+          ? `Con lluvia de hasta el ${Math.round(mostRelevantAdvice.hour.rain)}% y viento medio de ${Math.round(mostRelevantAdvice.hour.wind)} km/h, elige chubasquero y ten precaución.`
+          : `En una de las próximas ${hoursAway} h coinciden lluvia (${Math.round(mostRelevantAdvice.hour.rain)}%) y viento medio de ${Math.round(mostRelevantAdvice.hour.wind)} km/h o rachas de ${Math.round(mostRelevantAdvice.hour.gust)} km/h.`;
+        showRecommendationImage('weather-raincoat.svg', 'Dibujo de una persona con chubasquero amarillo bajo la lluvia');
+      } else if (mostRelevantAdvice.advice.level === 2) {
+        verdict.textContent = 'Mejor un paraguas antiviento';
+        copy.textContent = `La lluvia puede alcanzar el ${Math.round(mostRelevantAdvice.hour.rain)}%; con viento medio de ${Math.round(mostRelevantAdvice.hour.wind)} km/h, uno reforzado será más manejable.`;
+        showRecommendationImage('weather-umbrella.svg', 'Dibujo de un paraguas abierto bajo la lluvia');
+      } else if (mostRelevantAdvice.advice.level === 1) {
+        verdict.textContent = 'Mejor llevar paraguas';
+        copy.textContent = `La lluvia puede alcanzar el ${Math.round(mostRelevantAdvice.hour.rain)}% y el viento medio se mantiene por debajo de 20 km/h.`;
+        showRecommendationImage('weather-umbrella.svg', 'Dibujo de un paraguas abierto bajo la lluvia');
+      } else {
+        verdict.textContent = maxWind >= strongWindThreshold ? 'Sin lluvia relevante, pero con viento fuerte' : 'No parece que necesites paraguas';
+        copy.textContent = `La probabilidad de lluvia se mantiene por debajo del ${rainThreshold}% en las próximas ${hoursAway} h.${maxWind >= strongWindThreshold ? ` El viento medio puede llegar a ${Math.round(maxWind)} km/h.` : ''}`;
+        showRecommendationImage('weather-clear.svg', 'Dibujo de un cielo despejado sin lluvia');
+      }
+
+      updated.textContent = `Actualizado a las ${forecast.current.time.slice(11, 16)}`;
+    }
+
+    function weatherLabel(code) {
+      if (code === 0) return 'Despejado';
+      if (code === 1) return 'Poco nuboso';
+      if (code === 2) return 'Intervalos nubosos';
+      if (code === 3) return 'Cubierto';
+      if ([45, 48].includes(code)) return 'Niebla';
+      if ([51, 53, 55, 56, 57].includes(code)) return 'Llovizna';
+      if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return 'Lluvia';
+      if ([71, 73, 75, 77, 85, 86].includes(code)) return 'Nieve';
+      if ([95, 96, 99].includes(code)) return 'Tormenta';
+      return 'Variable';
+    }
+
+    function weatherIcon(code) {
+      if (code === 0) return '☀️';
+      if ([1, 2].includes(code)) return '🌤️';
+      if ([3, 45, 48].includes(code)) return '☁️';
+      if ([71, 73, 75, 77, 85, 86].includes(code)) return '❄️';
+      if ([95, 96, 99].includes(code)) return '⛈️';
+      if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return '🌧️';
+      return '🌦️';
+    }
+
+    async function updateWeather() {
+      panel.classList.add('weather-panel--loading');
+      panel.classList.remove('weather-panel--error');
+      error.hidden = true;
+      refresh.disabled = true;
+      verdict.textContent = 'Consultando el tiempo';
+      copy.textContent = 'Un momento, estamos revisando la lluvia y el viento.';
+
+      const params = new URLSearchParams({
+        latitude,
+        longitude,
+        current: 'temperature_2m,apparent_temperature,wind_speed_10m,wind_gusts_10m,weather_code',
+        hourly: 'precipitation_probability,wind_speed_10m,wind_gusts_10m',
+        daily: 'precipitation_probability_max',
+        timezone,
+        forecast_days: '2',
+      });
+
+      try {
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Weather request failed');
+
+        latestForecast = await response.json();
+        renderForecast(latestForecast);
+      } catch (cause) {
+        console.error('No se pudo cargar o interpretar la previsión meteorológica.', cause);
+        panel.classList.remove('weather-panel--loading', 'weather-panel--rain', 'weather-panel--wind');
+        panel.classList.add('weather-panel--error');
+        recommendationLabel.textContent = 'PREVISIÓN NO DISPONIBLE';
+        verdict.textContent = 'No podemos decidirlo ahora';
+        copy.textContent = cause instanceof TypeError
+          ? 'No se pudo conectar con el servicio meteorológico. Comprueba tu conexión e inténtalo de nuevo.'
+          : 'El servicio respondió, pero no pudimos interpretar la previsión. Vuelve a intentarlo en unos minutos.';
+        recommendationImage.hidden = true;
+        updated.textContent = 'No se pudo actualizar';
+        error.hidden = false;
+      } finally {
+        refresh.disabled = false;
+      }
+    }
+
+    [startInput, endInput].forEach((input) => {
+      input.addEventListener('change', () => {
+        if (latestForecast) renderForecast(latestForecast);
+      });
+    });
+    refresh.addEventListener('click', updateWeather);
+    updateWeather();
+  });
+</script>
+
+<style>
+  .weather-panel {
+    width: min(100%, 760px);
+    color: #1d302d;
+    animation: arrive 420ms ease-out both;
+  }
+
+  .weather-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 28px;
+    margin-bottom: 28px;
+  }
+
+  .eyebrow {
+    margin: 0 0 10px;
+    color: #597269;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  h1, h2, p { margin-top: 0; }
+
+  .heading-copy {
+    margin: 0;
+    color: #64746d;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .current-weather {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    flex-direction: row-reverse;
+    gap: 12px;
+    padding-bottom: 3px;
+  }
+
+  .current-icon { font-size: 32px; }
+  .current-weather div { display: grid; gap: 2px; }
+  .current-temperature { font: 700 24px/1 'Manrope', sans-serif; }
+  .current-condition { color: #64746d; font-size: 12px; }
+
+  .recommendation {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 20px;
+    min-height: 174px;
+    padding: 28px 30px;
+    border-radius: 8px;
+    background: #19453e;
+    color: #fff;
+    transition: background-color 220ms ease;
+  }
+
+  .recommendation-illustration {
+    display: block;
+    width: 92px;
+    height: 78px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+
+  .recommendation-illustration[hidden] { display: none; }
+
+  .recommendation-label {
+    margin: 0 0 9px;
+    color: #cfe98e;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .recommendation h2 {
+    margin: 0 0 7px;
+    font: 700 25px/1.2 'Manrope', sans-serif;
+  }
+
+  .recommendation-copy {
+    max-width: 410px;
+    margin: 0;
+    color: #d2e0d9;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .refresh {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 13px;
+    border: 1px solid rgb(255 255 255 / 35%);
+    border-radius: 6px;
+    background: transparent;
+    color: #fff;
+    font: 600 12px 'DM Sans', sans-serif;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .refresh:hover { background: rgb(255 255 255 / 10%); }
+  .refresh:focus-visible { outline: 3px solid #d7ed9f; outline-offset: 3px; }
+  .refresh:disabled { opacity: 0.6; cursor: wait; }
+  .refresh span { font-size: 17px; line-height: 1; }
+
+  .interval-control {
+    padding: 22px 0 20px;
+    border-bottom: 1px solid #d7dfd7;
+  }
+
+  .interval-heading {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .interval-field { display: grid; min-width: 0; gap: 6px; }
+  .interval-field > span { color: #53665c; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .interval-field select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid #ccd8ce;
+    border-radius: 6px;
+    background: #fff;
+    color: #233a31;
+    font: 600 13px 'DM Sans', sans-serif;
+  }
+
+  .interval-field select:focus-visible { outline: 3px solid #e27f55; outline-offset: 2px; border-color: #398376; }
+
+  .interval-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 11px; }
+  .interval-status output { color: #19453e; font: 700 13px 'Manrope', sans-serif; }
+  .updated { color: #829087; font-size: 10px; }
+  .interval-note { margin: 8px 0 0; color: #7a877f; font-size: 11px; }
+
+  .weather-panel--rain .recommendation { background: #24574e; }
+  .weather-panel--wind .recommendation { background: #254a54; }
+  .weather-panel--error .recommendation { background: #625248; }
+
+  .conditions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    padding: 25px 0 27px;
+    border-bottom: 1px solid #d7dfd7;
+  }
+
+  .condition { min-width: 0; padding: 0 24px; border-right: 1px solid #d7dfd7; }
+  .condition:first-child { padding-left: 0; }
+  .condition:last-child { padding-right: 0; border-right: 0; }
+  .condition dt { min-height: 28px; margin-bottom: 9px; color: #687970; font-size: 10px; font-weight: 700; line-height: 1.4; }
+  .condition dd { margin: 0 0 4px; font: 700 27px/1.1 'Manrope', sans-serif; }
+  .condition dd small { font: 600 12px 'DM Sans', sans-serif; }
+  .condition .risk-value[data-risk='green'] { color: #28714e; }
+  .condition .risk-value[data-risk='yellow'] { color: #94620a; }
+  .condition .risk-value[data-risk='red'] { color: #ae4238; }
+
+  .risk-legend { display: flex; justify-content: flex-end; gap: 14px; padding-top: 11px; color: #65756d; font-size: 10px; }
+  .risk-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .risk-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .risk-dot--green { background: #39845d; }
+  .risk-dot--yellow { background: #d3a22f; }
+  .risk-dot--red { background: #c95649; }
+
+  .criteria-note { margin: 13px 0 0; color: #7a877f; font-size: 11px; line-height: 1.5; }
+
+  .error-message { margin: 16px 0 0; color: #9c4939; font-size: 13px; }
+  .error-message[hidden] { display: none; }
+  .weather-panel--loading .recommendation { opacity: 0.82; }
+
+  @keyframes arrive {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 640px) {
+    .recommendation { grid-template-columns: 78px minmax(0, 1fr); gap: 16px; padding: 22px; }
+    .recommendation-illustration { width: 78px; height: 70px; }
+    .recommendation h2 { font-size: 21px; }
+    .refresh { grid-column: 2; justify-self: start; }
+  }
+
+  @media (max-width: 440px) {
+    .recommendation { grid-template-columns: 62px minmax(0, 1fr); gap: 12px; padding: 18px 15px; }
+    .recommendation-illustration { width: 62px; height: 62px; }
+    .recommendation-label { font-size: 9px; }
+    .recommendation h2 { font-size: 19px; }
+    .recommendation-copy { font-size: 12px; }
+    .conditions { padding: 20px 0; }
+    .condition { padding: 0 10px; }
+    .condition dt { min-height: 42px; font-size: 9px; }
+    .condition dd { font-size: 20px; }
+    .interval-heading { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .interval-status { align-items: flex-start; flex-direction: column; gap: 5px; }
+    .interval-status output { font-size: 12px; }
+    .criteria-note { font-size: 10px; }
+    .condition { padding: 0 9px; }
+    .condition:first-child { padding-left: 0; }
+    .condition:last-child { padding-right: 0; border-right: 0; }
+    .risk-legend { justify-content: flex-start; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .weather-panel { animation: none; }
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+  }
+</style>
