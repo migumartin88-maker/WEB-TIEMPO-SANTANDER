@@ -74,7 +74,7 @@ const {
       <output data-duration>Elige inicio y fin</output>
       <span class="updated" data-updated role="status">Actualizando datos</span>
     </div>
-    <p class="interval-note">Elige horas completas, hasta 12 horas desde la consulta.</p>
+    <p class="interval-note">Elige tramos de 30 minutos, hasta 4 horas desde la consulta. La previsión meteorológica disponible es horaria.</p>
   </div>
 
   <dl class="conditions" aria-label="Resumen meteorológico">
@@ -155,54 +155,76 @@ const {
 
     function configureTimeInputs(forecast) {
       const hourlyTimes = forecast.hourly.time;
-      const availableStartIndex = hourlyTimes.findIndex((time) => time >= forecast.current.time);
-      if (availableStartIndex < 0) throw new Error('Hourly forecast unavailable');
-
-      const currentMinute = Number(forecast.current.time.slice(14, 16));
-      const maxEndIndex = Math.min(
-        hourlyTimes.length - 1,
-        availableStartIndex + (currentMinute === 0 ? 12 : 11),
+      const localTimeParts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(new Date()).reduce((parts, { type, value }) => {
+        if (type !== 'literal') parts[type] = value;
+        return parts;
+      }, {});
+      const currentTime = Date.parse(
+        `${localTimeParts.year}-${localTimeParts.month}-${localTimeParts.day}T${localTimeParts.hour}:${localTimeParts.minute}:${localTimeParts.second}Z`,
       );
-      const maxStartIndex = maxEndIndex - 1;
-      if (maxStartIndex < availableStartIndex) throw new Error('12-hour forecast window unavailable');
+      if (!Number.isFinite(currentTime) || !hourlyTimes.length) throw new Error('Hourly forecast unavailable');
+
+      const halfHourMs = 30 * 60 * 1000;
+      const firstAvailableTime = new Date(Math.ceil(currentTime / halfHourMs) * halfHourMs)
+        .toISOString()
+        .slice(0, 16);
+      const lastAvailableTime = new Date(currentTime + 4 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 16);
+      const timeSlots = hourlyTimes.flatMap((time, hourIndex) => [
+        { time, hourIndex },
+        { time: `${time.slice(0, 14)}30`, hourIndex },
+      ]).filter(({ time }) => time >= firstAvailableTime && time <= lastAvailableTime);
+      if (timeSlots.length < 2) throw new Error('Four-hour forecast window unavailable');
 
       const previousStart = startInput.value;
       const previousEnd = endInput.value;
       const addOptions = (select, firstIndex, lastIndex, selectedValue) => {
         const options = [new Option('Elige una hora', '')];
         for (let index = firstIndex; index <= lastIndex; index += 1) {
-          options.push(new Option(hourlyTimes[index].slice(11, 16), hourlyTimes[index]));
+          options.push(new Option(`${timeSlots[index].time.slice(11, 16)} h`, timeSlots[index].time));
         }
         select.replaceChildren(...options);
         if (options.some((option) => option.value === selectedValue)) select.value = selectedValue;
       };
 
-      addOptions(startInput, availableStartIndex, maxStartIndex, previousStart);
-      let selectedStartIndex = hourlyTimes.indexOf(startInput.value);
+      const lastEndIndex = timeSlots.length - 1;
+      addOptions(startInput, 0, lastEndIndex - 1, previousStart);
+      let selectedStartIndex = timeSlots.findIndex(({ time }) => time === startInput.value);
       if (selectedStartIndex < 0) {
-        selectedStartIndex = availableStartIndex;
-        startInput.value = hourlyTimes[selectedStartIndex];
+        selectedStartIndex = 0;
+        startInput.value = timeSlots[selectedStartIndex].time;
       }
 
-      addOptions(endInput, selectedStartIndex + 1, maxEndIndex, previousEnd);
-      let selectedEndIndex = hourlyTimes.indexOf(endInput.value);
-      if (selectedEndIndex < selectedStartIndex + 1 || selectedEndIndex > maxEndIndex) {
-        selectedEndIndex = Math.min(selectedStartIndex + 3, maxEndIndex);
-        endInput.value = hourlyTimes[selectedEndIndex];
+      addOptions(endInput, selectedStartIndex + 1, lastEndIndex, previousEnd);
+      let selectedEndIndex = timeSlots.findIndex(({ time }) => time === endInput.value);
+      if (selectedEndIndex <= selectedStartIndex || selectedEndIndex > lastEndIndex) {
+        selectedEndIndex = Math.min(selectedStartIndex + 6, lastEndIndex);
+        endInput.value = timeSlots[selectedEndIndex].time;
       }
 
-      return { selectedStartIndex, selectedEndIndex };
+      return { selectedStartIndex, selectedEndIndex, timeSlots };
     }
 
     function renderForecast(forecast) {
-      const { selectedStartIndex, selectedEndIndex } = configureTimeInputs(forecast);
-      const nextHours = forecast.hourly.time.slice(selectedStartIndex, selectedEndIndex).map((time, index) => ({
+      const { selectedStartIndex, selectedEndIndex, timeSlots } = configureTimeInputs(forecast);
+      const nextHours = timeSlots.slice(selectedStartIndex, selectedEndIndex).map(({ time, hourIndex }) => ({
         time,
-        rain: forecast.hourly.precipitation_probability[selectedStartIndex + index],
-        wind: forecast.hourly.wind_speed_10m[selectedStartIndex + index],
-        gust: forecast.hourly.wind_gusts_10m[selectedStartIndex + index],
+        rain: forecast.hourly.precipitation_probability[hourIndex],
+        wind: forecast.hourly.wind_speed_10m[hourIndex],
+        gust: forecast.hourly.wind_gusts_10m[hourIndex],
       }));
-      const hoursAway = selectedEndIndex - selectedStartIndex;
+      const hoursAway = (selectedEndIndex - selectedStartIndex) / 2;
+      const durationHours = hoursAway.toLocaleString('es-ES');
       const rainValues = nextHours.map(({ rain: value }) => value).filter(Number.isFinite);
       const windValues = nextHours.map(({ wind: value }) => value).filter(Number.isFinite);
       const gustValues = nextHours.map(({ gust: value }) => value).filter(Number.isFinite);
@@ -227,15 +249,15 @@ const {
       setRiskLevel(rain, maxRain, 40, 70);
       setRiskLevel(wind, maxWind, 20, 39);
       setRiskLevel(gust, maxGust, 40, 50);
-      const firstHour = forecast.hourly.time[selectedStartIndex];
-      const endBoundary = forecast.hourly.time[selectedEndIndex];
-      duration.textContent = `${firstHour?.slice(11, 16) ?? '--:--'}–${endBoundary?.slice(11, 16) ?? '--:--'} · ${hoursAway} h`;
-      recommendationLabel.textContent = `DECISIÓN DE ${firstHour?.slice(11, 16) ?? '--:--'} A ${endBoundary?.slice(11, 16) ?? '--:--'}`;
+      const firstHour = timeSlots[selectedStartIndex].time;
+      const endBoundary = timeSlots[selectedEndIndex].time;
+      duration.textContent = `${firstHour.slice(11, 16)}–${endBoundary.slice(11, 16)} · ${durationHours} h`;
+      recommendationLabel.textContent = `DECISIÓN DE ${firstHour.slice(11, 16)} A ${endBoundary.slice(11, 16)}`;
       if (mostRelevantAdvice.advice.level >= 3) {
         verdict.textContent = mostRelevantAdvice.advice.level === 4 ? 'Chubasquero y precaución' : 'Mejor un chubasquero';
         copy.textContent = mostRelevantAdvice.advice.level === 4
           ? `Con lluvia de hasta el ${Math.round(mostRelevantAdvice.hour.rain)}% y viento medio de ${Math.round(mostRelevantAdvice.hour.wind)} km/h, elige chubasquero y ten precaución.`
-          : `En una de las próximas ${hoursAway} h coinciden lluvia (${Math.round(mostRelevantAdvice.hour.rain)}%) y viento medio de ${Math.round(mostRelevantAdvice.hour.wind)} km/h o rachas de ${Math.round(mostRelevantAdvice.hour.gust)} km/h.`;
+          : `En una de las próximas ${durationHours} h coinciden lluvia (${Math.round(mostRelevantAdvice.hour.rain)}%) y viento medio de ${Math.round(mostRelevantAdvice.hour.wind)} km/h o rachas de ${Math.round(mostRelevantAdvice.hour.gust)} km/h.`;
         showRecommendationImage('weather-raincoat.svg', 'Dibujo de una persona con chubasquero amarillo bajo la lluvia');
       } else if (mostRelevantAdvice.advice.level === 2) {
         verdict.textContent = 'Mejor un paraguas antiviento';
@@ -247,7 +269,7 @@ const {
         showRecommendationImage('weather-umbrella.svg', 'Dibujo de un paraguas abierto bajo la lluvia');
       } else {
         verdict.textContent = maxWind >= strongWindThreshold ? 'Sin lluvia relevante, pero con viento fuerte' : 'No parece que necesites paraguas';
-        copy.textContent = `La probabilidad de lluvia se mantiene por debajo del ${rainThreshold}% en las próximas ${hoursAway} h.${maxWind >= strongWindThreshold ? ` El viento medio puede llegar a ${Math.round(maxWind)} km/h.` : ''}`;
+        copy.textContent = `La probabilidad de lluvia se mantiene por debajo del ${rainThreshold}% en las próximas ${durationHours} h.${maxWind >= strongWindThreshold ? ` El viento medio puede llegar a ${Math.round(maxWind)} km/h.` : ''}`;
         showRecommendationImage('weather-clear.svg', 'Dibujo de un cielo despejado sin lluvia');
       }
 
