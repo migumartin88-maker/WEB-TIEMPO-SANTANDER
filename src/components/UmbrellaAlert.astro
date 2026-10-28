@@ -100,10 +100,10 @@ const {
 
   <section class="email-box" aria-labelledby="email-box-title">
     <div>
-      <h2 id="email-box-title">¿Vives en Santander?</h2>
-      <p>Te avisamos si llueve todas las mañanas a las 7:30h.</p>
+      <h2 id="email-box-title">En Santander nunca se sabe...</h2>
+      <p>Excepto si recibes nuestro aviso de lluvia a las 7:30h.</p>
     </div>
-    <form class="email-form">
+    <form class="email-form" data-email-form>
       <label class="sr-only" for="weather-alert-email">Correo electrónico</label>
       <input
         id="weather-alert-email"
@@ -113,9 +113,17 @@ const {
         autocomplete="email"
         required
       />
-      <button type="submit" disabled>Quiero recibir avisos</button>
+      <label class="email-consent">
+        <input type="checkbox" name="consent" value="yes" required />
+        <span>Acepto recibir un correo diario con la previsión de Santander a las 7:30. Podré darme de baja desde el email.</span>
+      </label>
+      <label class="honeypot" aria-hidden="true">
+        No rellenes este campo
+        <input type="text" name="website" tabindex="-1" autocomplete="off" />
+      </label>
+      <button type="submit">Quiero recibir avisos</button>
     </form>
-    <p class="email-note" role="status">El registro aún no está activo; tu email no se guardará todavía.</p>
+    <p class="email-status" data-email-status role="status" aria-live="polite" aria-atomic="true"></p>
   </section>
 </section>
 
@@ -144,8 +152,46 @@ const {
     const maxRain = app.querySelector('[data-max-rain]');
     const maxWind = app.querySelector('[data-max-wind]');
     const maxGust = app.querySelector('[data-max-gust]');
+    const emailForm = app.querySelector('[data-email-form]');
+    const emailStatus = app.querySelector('[data-email-status]');
     let weatherData;
     let baseTime;
+
+    if (emailForm instanceof HTMLFormElement && emailStatus) {
+      const submitButton = emailForm.querySelector('button[type="submit"]');
+      emailForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!(submitButton instanceof HTMLButtonElement)) return;
+
+        const formData = new FormData(emailForm);
+        const email = String(formData.get('email') ?? '').trim();
+        const consent = formData.get('consent') === 'yes';
+        const website = String(formData.get('website') ?? '');
+        submitButton.disabled = true;
+        emailStatus.textContent = 'Guardando tu suscripción…';
+
+        try {
+          const response = await fetch('/api/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, consent, website }),
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(typeof result.message === 'string' ? result.message : 'No se pudo completar la suscripción. Inténtalo de nuevo.');
+          }
+
+          emailStatus.textContent = result.message;
+          emailForm.reset();
+        } catch (subscriptionError) {
+          emailStatus.textContent = subscriptionError instanceof Error
+            ? subscriptionError.message
+            : 'No se pudo completar la suscripción. Inténtalo de nuevo.';
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+    }
 
     function formatClock(date) {
       return new Intl.DateTimeFormat('es-ES', {
@@ -539,8 +585,8 @@ const {
   .email-box p { margin: 5px 0 0; color: #75827b; font-size: 12px; line-height: 1.45; }
 
   .email-form {
-    display: flex;
-    gap: 9px;
+    display: grid;
+    gap: 10px;
   }
 
   .email-form input {
@@ -558,6 +604,33 @@ const {
   .email-form input:focus-visible,
   .email-form button:focus-visible { outline: 3px solid #a6c8b7; outline-offset: 2px; }
 
+  .email-form .email-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #596961;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .email-form .email-consent input {
+    width: 15px;
+    min-width: 15px;
+    min-height: 15px;
+    flex: none;
+    margin: 1px 0 0;
+    accent-color: #245649;
+  }
+
+  .email-form .honeypot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
   .email-form button {
     min-height: 42px;
     border: 0;
@@ -567,11 +640,11 @@ const {
     color: #fff;
     font: 700 12px 'DM Sans', sans-serif;
     white-space: nowrap;
-    cursor: not-allowed;
+    cursor: pointer;
   }
 
-  .email-form button:disabled { opacity: 0.58; }
-  .email-box .email-note { margin: -5px 0 0; font-size: 11px; }
+  .email-form button:disabled { cursor: wait; opacity: 0.58; }
+  .email-box .email-status { min-height: 0; margin: 0; font-size: 12px; }
 
   .sr-only {
     position: absolute;
@@ -591,7 +664,6 @@ const {
     .decision-kicker { text-align: left; }
     .decision-content h2 { font-size: 21px; }
     .decision-copy { font-size: 13px; }
-    .email-form { flex-direction: column; }
     .email-form button { width: 100%; }
   }
 

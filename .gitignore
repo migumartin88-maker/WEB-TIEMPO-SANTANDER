@@ -2,6 +2,7 @@
 node_modules/
 dist/
 .astro/
+.vercel/
 
 # Local environment variables and credentials
 .env

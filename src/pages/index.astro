@@ -3,6 +3,7 @@ import Analytics from '@vercel/analytics/astro';
 import { inject } from '@vercel/analytics';
 inject();
 import UmbrellaAlert from '../components/UmbrellaAlert.astro';
+export const prerender = true;
 ---
 <!doctype html>
 <html lang="es">
