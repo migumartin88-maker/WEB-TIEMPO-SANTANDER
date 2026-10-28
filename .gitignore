@@ -15,6 +15,7 @@ dist/
 .netrc
 credentials.json
 secrets.json
+clave api/
 
 # Private keys and certificates
 *.pem
