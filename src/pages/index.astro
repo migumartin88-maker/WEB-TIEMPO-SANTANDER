@@ -2,15 +2,19 @@
 import Analytics from '@vercel/analytics/astro';
 import { inject } from '@vercel/analytics';
 inject();
-import WeatherDecision from '../components/WeatherDecision.astro';
+import UmbrellaAlert from '../components/UmbrellaAlert.astro';
+export const prerender = true;
 ---
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f2f4ef" />
-    <meta name="description" content="Consulta la probabilidad de lluvia y el viento en Santander. Decide si hoy te conviene llevar paraguas o chubasquero." />
+    <meta name="theme-color" content="#f4f5ef" />
+    <meta
+      name="description"
+      content="Consulta la lluvia y el viento previstos en Santander para el tramo horario que elijas."
+    />
     <title>¿Va a llover hoy en Santander? | Lluvia y viento</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,44 +22,30 @@ import WeatherDecision from '../components/WeatherDecision.astro';
     <style>
       :root {
         font-family: 'DM Sans', sans-serif;
-        color: #1d302d;
-        background: #f2f4ef;
+        color: #203b35;
+        background: #f4f5ef;
         font-synthesis: none;
         text-rendering: optimizeLegibility;
       }
 
       * { box-sizing: border-box; }
-      body {
-        min-width: 320px;
-        min-height: 100vh;
-        margin: 0;
-        background-image: radial-gradient(#dce5dc 0.7px, transparent 0.7px);
-        background-size: 19px 19px;
-      }
-
+      body { min-width: 320px; min-height: 100vh; margin: 0; }
       main {
-        display: flex;
+        width: min(calc(100% - 36px), 760px);
         min-height: 100vh;
-        flex-direction: column;
-        padding: 0 28px;
+        margin: 0 auto;
+        padding: clamp(32px, 8vh, 78px) 0 38px;
       }
 
-      .content { display: grid; flex: 1; place-items: center; padding: 42px 0; }
-
-      @media (max-width: 560px) {
-        main { padding: 0 18px; }
-        .content { padding: 30px 0; }
+      @media (max-width: 480px) {
+        main { width: calc(100% - 36px); padding-top: 38px; }
       }
     </style>
   </head>
   <body>
     <main>
-      <div class="content">
-        <WeatherDecision city="Santander" threshold={40} windThreshold={39} gustThreshold={50} strongWindThreshold={50} />
-      </div>
+      <UmbrellaAlert city="Santander" latitude={43.4623} longitude={-3.80998} timezone="Europe/Madrid" threshold={50} />
     </main>
-<Analytics />
+    <Analytics />
   </body>
 </html>
-
-

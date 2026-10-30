@@ -1,0 +1,678 @@
+---
+interface Props {
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
+  threshold?: number;
+}
+
+const {
+  city = 'Santander',
+  latitude = 43.4623,
+  longitude = -3.80998,
+  timezone = 'Europe/Madrid',
+  threshold = 50,
+} = Astro.props;
+---
+
+<section
+  class="weather-app"
+  data-weather-app
+  data-city={city}
+  data-latitude={latitude}
+  data-longitude={longitude}
+  data-timezone={timezone}
+  data-threshold={threshold}
+>
+  <h1>¿Va a llover hoy en {city}?</h1>
+
+  <section class="current-weather" aria-label="Tiempo actual">
+    <div class="current-details">
+      <strong data-current-temp>—°</strong>
+      <span data-current-description>Consultando el tiempo</span>
+    </div>
+    <span class="current-icon" data-current-icon aria-hidden="true">⛅</span>
+  </section>
+
+  <section class="decision-card decision-card--loading" aria-live="polite" aria-atomic="true">
+    <div class="weather-illustration" aria-hidden="true">
+      <svg viewBox="0 0 120 90" role="img">
+        <rect width="120" height="90" rx="14" fill="#d9e8c7" />
+        <circle cx="87" cy="27" r="13" fill="#f3c95c" />
+        <path d="M0 64c19-11 34-10 53 0 17 9 38 7 67-8v34H0z" fill="#82b28a" />
+        <path d="M0 76c26-10 45-7 64 1s36 6 56-3v16H0z" fill="#5c9876" />
+        <path d="M21 47c0-7 6-12 13-12 3-10 17-11 22-2 8-1 13 5 13 12 0 7-5 12-13 12H34c-8 0-13-4-13-10z" fill="#fffdf4" />
+        <path d="M30 50c2 2 4 2 6 0m5 0c2 2 4 2 6 0" fill="none" stroke="#718a7a" stroke-linecap="round" stroke-width="2" />
+        <path d="M43 58c-1 5-1 9-1 13" fill="none" stroke="#47795f" stroke-linecap="round" stroke-width="2" />
+      </svg>
+    </div>
+
+    <div class="decision-content">
+      <p class="decision-kicker" data-decision-period>DECISIÓN DE — A —</p>
+      <h2 data-verdict>Consultando la previsión</h2>
+      <p class="decision-copy" data-decision-copy>Calculando la probabilidad de lluvia para el tramo seleccionado.</p>
+      <p class="decision-error" data-error hidden>No se pudo consultar la previsión. Comprueba tu conexión e inténtalo de nuevo.</p>
+      <button class="refresh" data-refresh type="button">
+        <span aria-hidden="true">↻</span>
+        Actualizar previsión
+      </button>
+    </div>
+  </section>
+
+  <section class="time-controls" aria-label="Selecciona el tramo horario">
+    <label class="time-field">
+      <span>Inicio</span>
+      <select aria-label="Hora de inicio" data-start></select>
+    </label>
+    <label class="time-field">
+      <span>Fin</span>
+      <select aria-label="Hora de fin" data-end></select>
+    </label>
+  </section>
+  <div class="time-meta">
+    <p class="time-range" data-range role="status">Selecciona un tramo</p>
+    <p class="updated" data-updated role="status">Actualizado al consultar</p>
+  </div>
+  <p class="time-hint">Elige tramos de 30 minutos, hasta 4 horas desde la consulta. La previsión meteorológica disponible es horaria.</p>
+
+  <section class="summary" aria-label="Resumen meteorológico">
+    <div class="metric metric--rain">
+      <span>Probabilidad máxima</span>
+      <strong data-max-rain>—%</strong>
+    </div>
+    <div class="metric metric--wind">
+      <span>Viento medio máximo</span>
+      <strong data-max-wind>— km/h</strong>
+    </div>
+    <div class="metric metric--gust">
+      <span>Racha máxima</span>
+      <strong data-max-gust>— km/h</strong>
+    </div>
+  </section>
+
+  <div class="legend" aria-label="Leyenda de colores">
+    <span><i class="legend-dot legend-dot--low"></i>Bajo</span>
+    <span><i class="legend-dot legend-dot--moderate"></i>Moderado</span>
+    <span><i class="legend-dot legend-dot--high"></i>Alto</span>
+  </div>
+  <p class="method-note">La recomendación combina probabilidad de lluvia, viento medio y rachas.</p>
+
+  <section class="email-box" aria-labelledby="email-box-title">
+    <div>
+      <h2 id="email-box-title">En Santander nunca se sabe...</h2>
+      <p>Excepto si recibes nuestro aviso de lluvia a las 7:30h.</p>
+    </div>
+    <form class="email-form" data-email-form>
+      <label class="sr-only" for="weather-alert-email">Correo electrónico</label>
+      <input
+        id="weather-alert-email"
+        type="email"
+        name="email"
+        placeholder="Tu correo electrónico"
+        autocomplete="email"
+        required
+      />
+      <label class="email-consent">
+        <input type="checkbox" name="consent" value="yes" required />
+        <span>Acepto recibir un correo diario con la previsión de Santander a las 7:30. Podré darme de baja desde el email.</span>
+      </label>
+      <label class="honeypot" aria-hidden="true">
+        No rellenes este campo
+        <input type="text" name="website" tabindex="-1" autocomplete="off" />
+      </label>
+      <button type="submit">Quiero recibir avisos</button>
+    </form>
+    <p class="email-status" data-email-status role="status" aria-live="polite" aria-atomic="true"></p>
+  </section>
+</section>
+
+<script>
+  const apps = document.querySelectorAll('[data-weather-app]');
+
+  apps.forEach((app) => {
+    const city = app.dataset.city ?? 'Santander';
+    const latitude = app.dataset.latitude ?? '43.4623';
+    const longitude = app.dataset.longitude ?? '-3.80998';
+    const timezone = app.dataset.timezone ?? 'Europe/Madrid';
+    const threshold = Number(app.dataset.threshold ?? 50);
+    const currentTemp = app.querySelector('[data-current-temp]');
+    const currentDescription = app.querySelector('[data-current-description]');
+    const currentIcon = app.querySelector('[data-current-icon]');
+    const card = app.querySelector('.decision-card');
+    const period = app.querySelector('[data-decision-period]');
+    const verdict = app.querySelector('[data-verdict]');
+    const decisionCopy = app.querySelector('[data-decision-copy]');
+    const error = app.querySelector('[data-error]');
+    const refresh = app.querySelector('[data-refresh]');
+    const startSelect = app.querySelector('[data-start]');
+    const endSelect = app.querySelector('[data-end]');
+    const range = app.querySelector('[data-range]');
+    const updated = app.querySelector('[data-updated]');
+    const maxRain = app.querySelector('[data-max-rain]');
+    const maxWind = app.querySelector('[data-max-wind]');
+    const maxGust = app.querySelector('[data-max-gust]');
+    const emailForm = app.querySelector('[data-email-form]');
+    const emailStatus = app.querySelector('[data-email-status]');
+    let weatherData;
+    let baseTime;
+
+    if (emailForm instanceof HTMLFormElement && emailStatus) {
+      const submitButton = emailForm.querySelector('button[type="submit"]');
+      emailForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!(submitButton instanceof HTMLButtonElement)) return;
+
+        const formData = new FormData(emailForm);
+        const email = String(formData.get('email') ?? '').trim();
+        const consent = formData.get('consent') === 'yes';
+        const website = String(formData.get('website') ?? '');
+        submitButton.disabled = true;
+        emailStatus.textContent = 'Guardando tu suscripción…';
+
+        try {
+          const response = await fetch('/api/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, consent, website }),
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(typeof result.message === 'string' ? result.message : 'No se pudo completar la suscripción. Inténtalo de nuevo.');
+          }
+
+          emailStatus.textContent = result.message;
+          emailForm.reset();
+        } catch (subscriptionError) {
+          emailStatus.textContent = subscriptionError instanceof Error
+            ? subscriptionError.message
+            : 'No se pudo completar la suscripción. Inténtalo de nuevo.';
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+    }
+
+    function formatClock(date) {
+      return new Intl.DateTimeFormat('es-ES', {
+        timeZone: timezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(date);
+    }
+
+    function clockAtOffset(offsetMinutes) {
+      return new Date(baseTime.getTime() + offsetMinutes * 60_000).toISOString().slice(11, 16);
+    }
+
+    function makeOption(offset) {
+      const option = document.createElement('option');
+      option.value = String(offset);
+      option.textContent = `${clockAtOffset(offset)} h`;
+      return option;
+    }
+
+    function setEndOptions(startOffset, selectedEnd) {
+      endSelect.replaceChildren();
+      const maxEnd = Math.min(240, startOffset + 240);
+      for (let offset = startOffset + 30; offset <= maxEnd; offset += 30) {
+        endSelect.append(makeOption(offset));
+      }
+      const options = [...endSelect.options];
+      const selectedOption = options.find((option) => Number(option.value) === selectedEnd) ?? options[Math.min(5, options.length - 1)];
+      if (selectedOption) endSelect.value = selectedOption.value;
+    }
+
+    function initializeTimeControls(currentTime) {
+      baseTime = new Date(`${currentTime}:00Z`);
+      if (Number.isNaN(baseTime.getTime())) throw new Error('Invalid local forecast time');
+
+      startSelect.replaceChildren();
+      const minute = Number(currentTime.slice(14, 16));
+      const firstOffset = (30 - (minute % 30)) % 30;
+      const firstOptionOffset = firstOffset === 0 ? 0 : firstOffset;
+      for (let offset = firstOptionOffset; offset <= 240; offset += 30) {
+        startSelect.append(makeOption(offset));
+      }
+      startSelect.value = String(firstOptionOffset);
+      setEndOptions(firstOptionOffset, firstOptionOffset + 180);
+      renderSelection();
+    }
+
+    function updateSummary() {
+      if (!weatherData) return;
+      const startOffset = Number(startSelect.value);
+      const endOffset = Number(endSelect.value);
+      const hourly = weatherData.hourly;
+      const points = hourly.time
+        .map((time, index) => {
+          const pointDate = new Date(`${time}:00Z`);
+          const offset = (pointDate.getTime() - baseTime.getTime()) / 60_000;
+          return {
+            offset,
+            rain: Number(hourly.precipitation_probability[index] ?? 0),
+            wind: Number(hourly.wind_speed_10m[index] ?? 0),
+            gust: Number(hourly.wind_gusts_10m[index] ?? 0),
+          };
+        })
+        .filter((point) => point.offset >= startOffset && point.offset <= endOffset);
+
+      if (!points.length) throw new Error('No hourly values available for the selected period');
+
+      const rain = Math.max(...points.map((point) => point.rain));
+      const wind = Math.max(...points.map((point) => point.wind));
+      const gust = Math.max(...points.map((point) => point.gust));
+      const windLevel = wind >= 35 || gust >= 60 ? 'high' : wind >= 20 || gust >= 40 ? 'moderate' : 'low';
+      const rainLevel = rain >= threshold ? 'high' : rain >= 30 ? 'moderate' : 'low';
+      const needsUmbrella = rain >= threshold;
+      const strongWind = gust >= 60 || wind >= 35;
+      const startLabel = clockAtOffset(startOffset);
+      const endLabel = clockAtOffset(endOffset);
+
+      period.textContent = `DECISIÓN DE ${startLabel} A ${endLabel}`;
+      verdict.textContent = needsUmbrella
+        ? 'Parece que vas a necesitar paraguas'
+        : 'No parece que necesites paraguas';
+      decisionCopy.textContent = needsUmbrella
+        ? `La probabilidad de lluvia alcanza el ${Math.round(rain)}% en el tramo elegido. Mejor salir preparado.`
+        : `La probabilidad de lluvia se mantiene por debajo del ${threshold}% en el tramo elegido.`;
+      if (strongWind) {
+        decisionCopy.textContent += ' Atención: el viento puede dificultar el uso del paraguas.';
+      }
+
+      maxRain.textContent = `${Math.round(rain)}%`;
+      maxWind.textContent = `${Math.round(wind)} km/h`;
+      maxGust.textContent = `${Math.round(gust)} km/h`;
+
+      card.classList.remove('decision-card--loading', 'decision-card--rain', 'decision-card--wind');
+      if (needsUmbrella) card.classList.add('decision-card--rain');
+      else if (strongWind) card.classList.add('decision-card--wind');
+      app.querySelector('.metric--rain').dataset.level = rainLevel;
+      app.querySelector('.metric--wind').dataset.level = windLevel;
+      app.querySelector('.metric--gust').dataset.level = gust >= 60 ? 'high' : gust >= 40 ? 'moderate' : 'low';
+      range.textContent = `${startLabel}–${endLabel} · ${(endOffset - startOffset) / 60} h`;
+    }
+
+    function renderSelection() {
+      if (!startSelect.value || !endSelect.value) return;
+      try {
+        updateSummary();
+      } catch {
+        if (weatherData) {
+          decisionCopy.textContent = 'No hay datos horarios disponibles para ese tramo. Prueba con otro intervalo.';
+        }
+      }
+    }
+
+    function describeWeather(code) {
+      if (code === 0) return ['Despejado', '☀️'];
+      if (code === 1) return ['Mayormente despejado', '🌤️'];
+      if (code === 2) return ['Parcialmente nuboso', '⛅'];
+      if (code === 3) return ['Cubierto', '☁️'];
+      if ([45, 48].includes(code)) return ['Niebla', '🌫️'];
+      if ([51, 53, 55, 56, 57].includes(code)) return ['Llovizna', '🌦️'];
+      if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return ['Lluvia', '🌧️'];
+      if ([71, 73, 75, 77, 85, 86].includes(code)) return ['Nieve', '🌨️'];
+      if ([95, 96, 99].includes(code)) return ['Tormenta', '⛈️'];
+      return ['Condiciones variables', '🌤️'];
+    }
+
+    async function loadWeather() {
+      refresh.disabled = true;
+      error.hidden = true;
+      card.classList.add('decision-card--loading');
+      verdict.textContent = 'Consultando la previsión';
+      decisionCopy.textContent = `Calculando la probabilidad de lluvia en ${city}.`;
+
+      const params = new URLSearchParams({
+        latitude,
+        longitude,
+        current: 'temperature_2m,weather_code',
+        hourly: 'precipitation_probability,wind_speed_10m,wind_gusts_10m',
+        timezone,
+        forecast_days: '2',
+      });
+
+      try {
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Weather request failed: ${response.status}`);
+        const data = await response.json();
+        if (!data.current?.time || !data.hourly?.time?.length) throw new Error('Weather response is incomplete');
+
+        weatherData = data;
+        const [description, icon] = describeWeather(Number(data.current.weather_code));
+        currentTemp.textContent = `${Math.round(Number(data.current.temperature_2m))}°`;
+        currentDescription.textContent = description;
+        currentIcon.textContent = icon;
+        initializeTimeControls(data.current.time);
+        const updateTime = new Date();
+        updated.textContent = `Actualizado a las ${formatClock(updateTime)}`;
+      } catch {
+        card.classList.remove('decision-card--loading');
+        card.classList.add('decision-card--wind');
+        verdict.textContent = 'Previsión no disponible';
+        decisionCopy.textContent = 'No podemos comprobar la lluvia ahora mismo. Inténtalo de nuevo en unos instantes.';
+        error.hidden = false;
+        currentDescription.textContent = 'Datos no disponibles';
+        currentIcon.textContent = '🌧️';
+        updated.textContent = 'No se pudo actualizar';
+        maxRain.textContent = '—%';
+        maxWind.textContent = '— km/h';
+        maxGust.textContent = '— km/h';
+      } finally {
+        refresh.disabled = false;
+      }
+    }
+
+    startSelect.addEventListener('change', () => {
+      const oldEnd = Number(endSelect.value);
+      const startOffset = Number(startSelect.value);
+      setEndOptions(startOffset, oldEnd > startOffset ? oldEnd : startOffset + 180);
+      renderSelection();
+    });
+    endSelect.addEventListener('change', renderSelection);
+    refresh.addEventListener('click', loadWeather);
+    loadWeather();
+  });
+</script>
+
+<style>
+  .weather-app {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    color: #233d36;
+    overflow-x: clip;
+  }
+
+  .weather-app::before {
+    position: absolute;
+    z-index: -1;
+    inset: -70px 0;
+    background-image: radial-gradient(#dce2d6 0.7px, transparent 0.7px);
+    background-size: 15px 15px;
+    content: '';
+    opacity: 0.42;
+    pointer-events: none;
+  }
+
+  h1 {
+    max-width: 520px;
+    margin: 0;
+    color: #203b35;
+    font: 800 clamp(32px, 7vw, 48px)/1.14 'Manrope', sans-serif;
+    letter-spacing: -1.7px;
+  }
+
+  .current-weather {
+    display: flex;
+    min-height: 60px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    margin: 22px 4px 8px;
+  }
+
+  .current-details { display: grid; text-align: right; }
+  .current-details strong { font: 800 24px/1.1 'Manrope', sans-serif; }
+  .current-details span { margin-top: 3px; color: #75827b; font-size: 13px; }
+  .current-icon { font-size: 38px; line-height: 1; }
+
+  .decision-card {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 208px;
+    padding: 26px 24px;
+    border-radius: 9px;
+    background: #174b40;
+    color: #fff;
+    transition: background-color 180ms ease;
+  }
+
+  .decision-card--rain { background: #8d5427; }
+  .decision-card--wind { background: #344b52; }
+  .decision-card--loading { opacity: 0.86; }
+
+  .weather-illustration {
+    width: 90px;
+    height: 70px;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+
+  .weather-illustration svg { display: block; width: 100%; height: 100%; }
+  .decision-content { min-width: 0; }
+
+  .decision-kicker {
+    margin: 0 0 10px;
+    color: #d3e2ab;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+
+  .decision-content h2 {
+    margin: 0;
+    font: 800 clamp(20px, 4vw, 25px)/1.18 'Manrope', sans-serif;
+    letter-spacing: -0.5px;
+  }
+
+  .decision-copy {
+    margin: 8px 0 16px;
+    color: #e2ebe6;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .decision-error { margin: 0 0 12px; color: #ffe0ca; font-size: 13px; }
+  .decision-error[hidden] { display: none; }
+
+  .refresh {
+    display: inline-flex;
+    min-height: 41px;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgb(255 255 255 / 45%);
+    border-radius: 9px;
+    padding: 8px 13px;
+    background: transparent;
+    color: #fff;
+    font: 700 12px 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+
+  .refresh:hover { background: rgb(255 255 255 / 10%); }
+  .refresh:focus-visible, select:focus-visible { outline: 3px solid #d3e2ab; outline-offset: 2px; }
+  .refresh:disabled { opacity: 0.6; cursor: wait; }
+  .refresh span { font-size: 18px; line-height: 1; }
+
+  .time-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 23px;
+  }
+
+  .time-field { display: grid; gap: 7px; }
+  .time-field > span {
+    color: #68776f;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .time-field select {
+    width: 100%;
+    min-height: 45px;
+    border: 1px solid #d5dad3;
+    border-radius: 7px;
+    padding: 0 12px;
+    background: #fff;
+    color: #34453f;
+    font: 600 13px 'DM Sans', sans-serif;
+  }
+
+  .time-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
+  .time-meta p { margin: 0; }
+  .time-range { color: #245649; font-size: 13px; font-weight: 700; }
+  .updated { color: #929a92; font-size: 10px; text-align: right; }
+
+  .time-hint {
+    margin: 10px 0 19px;
+    color: #87918a;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid #dfe2d9;
+    border-bottom: 1px solid #dfe2d9;
+    padding: 22px 0;
+  }
+
+  .metric {
+    display: flex;
+    min-height: 65px;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 13px;
+    border-right: 1px solid #dfe2d9;
+  }
+
+  .metric:first-child { padding-left: 0; }
+  .metric:last-child { padding-right: 0; border-right: 0; }
+  .metric > span { color: #7d8981; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+  .metric strong { font: 800 clamp(20px, 5vw, 28px)/1.1 'Manrope', sans-serif; letter-spacing: -0.7px; }
+  .metric[data-level='low'] strong { color: #3b8065; }
+  .metric[data-level='moderate'] strong { color: #a47a2c; }
+  .metric[data-level='high'] strong { color: #b75f53; }
+
+  .legend {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 13px;
+    color: #728078;
+    font-size: 10px;
+  }
+
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .legend-dot--low { background: #3b8065; }
+  .legend-dot--moderate { background: #c3a43e; }
+  .legend-dot--high { background: #c36c5e; }
+  .method-note { margin: 17px 0 0; color: #8b948c; font-size: 11px; }
+
+  .email-box {
+    display: grid;
+    gap: 14px;
+    margin-top: 26px;
+    padding: 20px;
+    border: 1px solid #dfe4db;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 68%);
+  }
+
+  .email-box h2 { margin: 0; color: #203b35; font: 700 17px/1.3 'Manrope', sans-serif; }
+  .email-box p { margin: 5px 0 0; color: #75827b; font-size: 12px; line-height: 1.45; }
+
+  .email-form {
+    display: grid;
+    gap: 10px;
+  }
+
+  .email-form input {
+    min-width: 0;
+    min-height: 42px;
+    flex: 1;
+    border: 1px solid #d5dad3;
+    border-radius: 7px;
+    padding: 0 12px;
+    background: #fff;
+    color: #34453f;
+    font: 500 13px 'DM Sans', sans-serif;
+  }
+
+  .email-form input:focus-visible,
+  .email-form button:focus-visible { outline: 3px solid #a6c8b7; outline-offset: 2px; }
+
+  .email-form .email-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #596961;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .email-form .email-consent input {
+    width: 15px;
+    min-width: 15px;
+    min-height: 15px;
+    flex: none;
+    margin: 1px 0 0;
+    accent-color: #245649;
+  }
+
+  .email-form .honeypot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .email-form button {
+    min-height: 42px;
+    border: 0;
+    border-radius: 7px;
+    padding: 0 13px;
+    background: #245649;
+    color: #fff;
+    font: 700 12px 'DM Sans', sans-serif;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .email-form button:disabled { cursor: wait; opacity: 0.58; }
+  .email-box .email-status { min-height: 0; margin: 0; font-size: 12px; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 520px) {
+    .decision-card { grid-template-columns: 78px minmax(0, 1fr); gap: 14px; padding: 21px 18px; }
+    .weather-illustration { width: 78px; height: 64px; }
+    .decision-kicker { text-align: left; }
+    .decision-content h2 { font-size: 21px; }
+    .decision-copy { font-size: 13px; }
+    .email-form button { width: 100%; }
+  }
+
+  @media (max-width: 380px) {
+    .decision-card { grid-template-columns: 1fr; }
+    .weather-illustration { display: none; }
+    .time-controls { gap: 9px; }
+    .metric { padding: 2px 8px; }
+    .metric > span { font-size: 8px; }
+    .legend { gap: 9px; }
+  }
+</style>
