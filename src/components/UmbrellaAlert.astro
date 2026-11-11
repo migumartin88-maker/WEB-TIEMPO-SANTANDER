@@ -125,6 +125,21 @@ const {
     </form>
     <p class="email-status" data-email-status role="status" aria-live="polite" aria-atomic="true"></p>
   </section>
+  <section class="share-box" aria-labelledby="share-box-title">
+    <div>
+      <h2 id="share-box-title">¿Conoces a alguien que siempre llega empapado?</h2>
+      <p>Pásale la web. Te lo agradecerá el próximo día de calabobos.</p>
+    </div>
+    <div class="share-actions">
+      <a
+        class="share-whatsapp"
+        href="https://wa.me/?text=%C2%BFSaco%20paraguas%20hoy%3F%20%E2%98%82%EF%B8%8F%20Mira%20la%20lluvia%20y%20el%20viento%20en%20Santander%20por%20tramos%3A%20https%3A%2F%2Fsacoparaguas.vercel.app%2F"
+        target="_blank"
+        rel="noopener"
+      >Compartir por WhatsApp</a>
+      <button class="share-copy" type="button" data-copy-link>Copiar enlace</button>
+    </div>
+  </section>
 </section>
 
 <script>
@@ -646,6 +661,37 @@ const {
   .email-form button:disabled { cursor: wait; opacity: 0.58; }
   .email-box .email-status { min-height: 0; margin: 0; font-size: 12px; }
 
+  .share-box {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 18px 20px;
+    border: 1px dashed #d5dad3;
+    border-radius: 12px;
+  }
+
+  .share-box h2 { margin: 0; color: #203b35; font: 700 15px/1.3 'Manrope', sans-serif; }
+  .share-box p { margin: 5px 0 0; color: #75827b; font-size: 12px; line-height: 1.45; }
+  .share-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .share-whatsapp,
+  .share-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    border-radius: 7px;
+    padding: 0 14px;
+    font: 700 12px 'DM Sans', sans-serif;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .share-whatsapp { border: 0; background: #1f8f5a; color: #fff; }
+  .share-copy { border: 1px solid #d5dad3; background: #fff; color: #34453f; }
+  .share-whatsapp:focus-visible,
+  .share-copy:focus-visible { outline: 3px solid #a6c8b7; outline-offset: 2px; }
+
   .sr-only {
     position: absolute;
     width: 1px;
@@ -665,6 +711,7 @@ const {
     .decision-content h2 { font-size: 21px; }
     .decision-copy { font-size: 13px; }
     .email-form button { width: 100%; }
+    .share-whatsapp, .share-copy { flex: 1; }
   }
 
   @media (max-width: 380px) {
@@ -676,3 +723,17 @@ const {
     .legend { gap: 9px; }
   }
 </style>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copy-link]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText('https://sacoparaguas.vercel.app/');
+        button.textContent = '¡Copiado!';
+      } catch {
+        button.textContent = 'sacoparaguas.vercel.app';
+      }
+      setTimeout(() => { button.textContent = 'Copiar enlace'; }, 2500);
+    });
+  });
+</script>
