@@ -60,6 +60,34 @@ const {
     </div>
   </section>
 
+  <section class="email-box" aria-labelledby="email-box-title">
+    <div>
+      <h2 id="email-box-title" data-email-title>En Santander nunca se sabe...</h2>
+      <p data-email-copy>Te avisamos cada mañana a las 7:30 si toca paraguas.</p>
+    </div>
+    <form class="email-form" data-email-form>
+      <label class="sr-only" for="weather-alert-email">Correo electrónico</label>
+      <input
+        id="weather-alert-email"
+        type="email"
+        name="email"
+        placeholder="Tu correo electrónico"
+        autocomplete="email"
+        required
+      />
+      <label class="email-consent">
+        <input type="checkbox" name="consent" value="yes" required />
+        <span>Acepto recibir un correo diario con la previsión de Santander. Podré darme de baja desde el email.</span>
+      </label>
+      <label class="honeypot" aria-hidden="true">
+        No rellenes este campo
+        <input type="text" name="website" tabindex="-1" autocomplete="off" />
+      </label>
+      <button type="submit">Avísame</button>
+    </form>
+    <p class="email-status" data-email-status role="status" aria-live="polite" aria-atomic="true"></p>
+  </section>
+
   <section class="time-controls" aria-label="Selecciona el tramo horario">
     <label class="time-field">
       <span>Inicio</span>
@@ -98,33 +126,6 @@ const {
   </div>
   <p class="method-note">La recomendación combina probabilidad de lluvia, viento medio y rachas.</p>
 
-  <section class="email-box" aria-labelledby="email-box-title">
-    <div>
-      <h2 id="email-box-title">En Santander nunca se sabe...</h2>
-      <p>Excepto si recibes nuestro aviso de lluvia a las 7:30h.</p>
-    </div>
-    <form class="email-form" data-email-form>
-      <label class="sr-only" for="weather-alert-email">Correo electrónico</label>
-      <input
-        id="weather-alert-email"
-        type="email"
-        name="email"
-        placeholder="Tu correo electrónico"
-        autocomplete="email"
-        required
-      />
-      <label class="email-consent">
-        <input type="checkbox" name="consent" value="yes" required />
-        <span>Acepto recibir un correo diario con la previsión de Santander a las 7:30. Podré darme de baja desde el email.</span>
-      </label>
-      <label class="honeypot" aria-hidden="true">
-        No rellenes este campo
-        <input type="text" name="website" tabindex="-1" autocomplete="off" />
-      </label>
-      <button type="submit">Quiero recibir avisos</button>
-    </form>
-    <p class="email-status" data-email-status role="status" aria-live="polite" aria-atomic="true"></p>
-  </section>
   <section class="share-box" aria-labelledby="share-box-title">
     <div>
       <h2 id="share-box-title">¿Conoces a alguien que siempre llega empapado?</h2>
@@ -158,6 +159,8 @@ const {
     const period = app.querySelector('[data-decision-period]');
     const verdict = app.querySelector('[data-verdict]');
     const decisionCopy = app.querySelector('[data-decision-copy]');
+    const emailTitle = app.querySelector('[data-email-title]');
+    const emailCopy = app.querySelector('[data-email-copy]');
     const error = app.querySelector('[data-error]');
     const refresh = app.querySelector('[data-refresh]');
     const startSelect = app.querySelector('[data-start]');
@@ -294,6 +297,12 @@ const {
         : `La probabilidad de lluvia se mantiene por debajo del ${threshold}% en el tramo elegido.`;
       if (strongWind) {
         decisionCopy.textContent += ' Atención: el viento puede dificultar el uso del paraguas.';
+      }
+      if (emailTitle && emailCopy) {
+        emailTitle.textContent = needsUmbrella ? '☂️ Hoy toca paraguas. ¿Y mañana?' : '😎 Hoy te libras. Pero esto es Santander…';
+        emailCopy.textContent = needsUmbrella
+          ? 'Te lo decimos cada día a las 7:30, antes de salir de casa.'
+          : 'Te avisamos cada mañana a las 7:30 si toca paraguas.';
       }
 
       maxRain.textContent = `${Math.round(rain)}%`;
@@ -589,7 +598,8 @@ const {
   .email-box {
     display: grid;
     gap: 14px;
-    margin-top: 26px;
+    margin-top: 16px;
+    margin-bottom: 26px;
     padding: 20px;
     border: 1px solid #dfe4db;
     border-radius: 12px;
