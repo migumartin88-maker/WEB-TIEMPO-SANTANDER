@@ -43,6 +43,46 @@ function escapeHtml(text: string): string {
   })[character] ?? character);
 }
 
+// Avisa por email al administrador (ALERT_EMAIL) cuando el envío diario falla.
+async function sendFailureAlert(reason: string): Promise<void> {
+  const apiKey = process.env.BREVO_API_KEY;
+  const alertEmail = process.env.ALERT_EMAIL;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+  const senderName = process.env.BREVO_SENDER_NAME || 'Saco Paraguas';
+  if (!apiKey || !alertEmail || !senderEmail) {
+    console.error('Failure alert not sent: missing ALERT_EMAIL or Brevo configuration.');
+    return;
+  }
+  const when = new Intl.DateTimeFormat('es-ES', { timeZone: TIMEZONE, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
+  try {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: alertEmail }],
+        subject: '⚠️ Saco Paraguas: hoy NO ha salido el aviso diario',
+        htmlContent: `<p><strong>El aviso diario de Saco Paraguas no se ha enviado.</strong></p>
+          <p>Fecha: ${escapeHtml(when)}</p>
+          <p>Motivo: ${escapeHtml(reason)}</p>
+          <p>Revisa Vercel (Logs) y Brevo (Campañas).</p>`,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      console.error('Failure alert rejected by Brevo.', { status: response.status, detail: (await response.text()).slice(0, 300) });
+    }
+  } catch (error) {
+    console.error('Failure alert could not be sent.', error);
+  }
+}
+
+async function fail(reason: string, status = 502): Promise<Response> {
+  console.error(`Daily weather email failed: ${reason}`);
+  await sendFailureAlert(reason);
+  return jsonResponse({ error: reason }, status);
+}
+
 export async function sendDailyWeather(request: Request): Promise<Response> {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
@@ -59,8 +99,7 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
   const senderName = process.env.BREVO_SENDER_NAME;
   const listId = Number(process.env.BREVO_LIST_ID);
   if (!apiKey || !senderEmail || !senderName || !Number.isSafeInteger(listId) || listId < 1) {
-    console.error('Daily weather email is missing Brevo server configuration.');
-    return jsonResponse({ error: 'Email service is not configured.' }, 503);
+    return fail('Falta configuración de Brevo en Vercel (clave, remitente o lista).', 503);
   }
 
   try {
@@ -76,8 +115,7 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
 
     const weatherResponse = await fetch(weatherUrl, { signal: AbortSignal.timeout(10_000) });
     if (!weatherResponse.ok) {
-      console.error('Open-Meteo rejected the daily forecast request.', { status: weatherResponse.status });
-      return jsonResponse({ error: 'Weather forecast unavailable.' }, 502);
+      return fail(`Open-Meteo no devolvió la previsión (HTTP ${weatherResponse.status}).`);
     }
 
     const weather = await weatherResponse.json();
@@ -139,8 +177,8 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
     });
 
     if (!campaignResponse.ok) {
-      console.error('Brevo rejected the daily campaign.', { status: campaignResponse.status });
-      return jsonResponse({ error: 'Email campaign could not be created.' }, 502);
+      const detail = (await campaignResponse.text()).slice(0, 300);
+      return fail(`Brevo rechazó crear la campaña (HTTP ${campaignResponse.status}): ${detail}`);
     }
 
     const campaign: unknown = await campaignResponse.json();
@@ -154,14 +192,13 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
       signal: AbortSignal.timeout(10_000),
     });
     if (!sendResponse.ok) {
-      console.error('Brevo rejected the daily campaign send request.', { status: sendResponse.status });
-      return jsonResponse({ error: 'Email campaign could not be sent.' }, 502);
+      const detail = (await sendResponse.text()).slice(0, 300);
+      return fail(`Brevo creó la campaña ${campaign.id} pero rechazó enviarla (HTTP ${sendResponse.status}): ${detail}`);
     }
 
     console.info('Daily Santander weather campaign sent.', { date: today, campaignId: campaign.id });
     return jsonResponse({ sent: true, date: today, rainProbability: Math.round(maxRain) });
   } catch (error) {
-    console.error('Daily weather email failed.', error);
-    return jsonResponse({ error: 'Daily weather email failed.' }, 502);
+    return fail(`Error inesperado: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
