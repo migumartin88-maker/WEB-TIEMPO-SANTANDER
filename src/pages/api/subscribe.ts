@@ -41,6 +41,9 @@ export const POST: APIRoute = async ({ request }) => {
   const email = typeof form.email === 'string' ? form.email.trim().toLowerCase() : '';
   const consent = form.consent === true;
   const honeypot = typeof form.website === 'string' ? form.website : '';
+  const origen = typeof form.origen === 'string'
+    ? form.origen.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40)
+    : '';
 
   if (honeypot) {
     return jsonResponse('Si el correo se puede añadir, recibirás los avisos.');
@@ -61,9 +64,8 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse('El servicio de suscripción no está configurado todavía.', 503);
   }
 
-  let brevoResponse: Response;
-  try {
-    brevoResponse = await fetch('https://api.brevo.com/v3/contacts', {
+  const createContact = (withOrigin: boolean) =>
+    fetch('https://api.brevo.com/v3/contacts', {
       method: 'POST',
       headers: {
         'api-key': apiKey,
@@ -73,8 +75,21 @@ export const POST: APIRoute = async ({ request }) => {
         email,
         listIds: [listId],
         updateEnabled: false,
+        ...(withOrigin ? { attributes: { ORIGEN: origen } } : {}),
       }),
     });
+
+  let brevoResponse: Response;
+  try {
+    brevoResponse = await createContact(Boolean(origen));
+    // Si Brevo rechaza el atributo ORIGEN (p. ej. aún no creado), reintenta sin él para no perder la suscripción.
+    if (origen && brevoResponse.status === 400) {
+      const detail = await brevoResponse.clone().text();
+      if (!/duplicate|already exist/i.test(detail)) {
+        console.warn('Brevo rejected ORIGEN attribute, retrying without it.', detail.slice(0, 200));
+        brevoResponse = await createContact(false);
+      }
+    }
   } catch (error) {
     console.error('Brevo contact request failed.', error);
     return jsonResponse('No se pudo conectar con el servicio de correo. Inténtalo más tarde.', 502);

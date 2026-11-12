@@ -175,6 +175,25 @@ const {
     let weatherData;
     let baseTime;
 
+    // Origen de la visita: ?ref=... en el enlace; si no hay, la web de procedencia; si no, "directo".
+    function detectOrigin() {
+      const clean = (value) => String(value).toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40);
+      let stored = '';
+      try { stored = sessionStorage.getItem('sp-origen') ?? ''; } catch {}
+      const ref = clean(new URLSearchParams(window.location.search).get('ref') ?? '');
+      let origin = ref || stored;
+      if (!origin && document.referrer) {
+        try {
+          const host = new URL(document.referrer).hostname.replace(/^www\./, '');
+          if (host && host !== window.location.hostname) origin = clean(host);
+        } catch {}
+      }
+      origin = origin || 'directo';
+      try { sessionStorage.setItem('sp-origen', origin); } catch {}
+      return origin;
+    }
+    const visitOrigin = detectOrigin();
+
     if (emailForm instanceof HTMLFormElement && emailStatus) {
       const submitButton = emailForm.querySelector('button[type="submit"]');
       emailForm.addEventListener('submit', async (event) => {
@@ -192,7 +211,7 @@ const {
           const response = await fetch('/api/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, consent, website }),
+            body: JSON.stringify({ email, consent, website, origen: visitOrigin }),
           });
           const result = await response.json();
           if (!response.ok) {
