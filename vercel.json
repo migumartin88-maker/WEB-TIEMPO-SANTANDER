@@ -2,12 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/send-weather-0530",
-      "schedule": "30 5 * * *"
+      "path": "/api/cron/send-weather-0400",
+      "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/cron/send-weather-0630",
-      "schedule": "30 6 * * *"
+      "path": "/api/cron/send-weather-0500",
+      "schedule": "0 5 * * *"
     }
   ]
 }

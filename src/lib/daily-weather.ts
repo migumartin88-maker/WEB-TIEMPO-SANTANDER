@@ -25,12 +25,26 @@ function localDate(date: Date): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function isLocalDeliveryHour(date: Date): boolean {
+// Vercel Hobby fires a cron at any minute of its hour, so the cron runs in the hour
+// before delivery (06:xx in Santander) and Brevo sends the campaign at the exact time.
+const PREPARE_HOUR = '06';
+const DELIVERY_TIME = '07:30:00';
+
+function isLocalPrepareHour(date: Date): boolean {
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: TIMEZONE,
     hour: '2-digit',
     hourCycle: 'h23',
-  }).format(date) === '07';
+  }).format(date) === PREPARE_HOUR;
+}
+
+// ISO date-time of today's delivery in Santander, with its UTC offset (+01:00 or +02:00).
+function deliveryDateTime(date: Date, today: string): string {
+  const offset = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    timeZoneName: 'longOffset',
+  }).formatToParts(date).find(({ type }) => type === 'timeZoneName')?.value.replace('GMT', '');
+  return `${today}T${DELIVERY_TIME}${offset || '+00:00'}`;
 }
 
 function escapeHtml(text: string): string {
@@ -90,7 +104,7 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
   }
 
   const now = new Date();
-  if (!isLocalDeliveryHour(now)) {
+  if (!isLocalPrepareHour(now)) {
     return jsonResponse({ skipped: true, reason: 'Outside Santander delivery hour.' });
   }
 
@@ -104,6 +118,7 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
 
   try {
     const today = localDate(now);
+    const scheduledAt = deliveryDateTime(now, today);
     const weatherUrl = new URL('https://api.open-meteo.com/v1/forecast');
     weatherUrl.search = new URLSearchParams({
       latitude: String(LATITUDE),
@@ -172,6 +187,7 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
         sender: { name: senderName, email: senderEmail },
         recipients: { listIds: [listId] },
         htmlContent: content,
+        scheduledAt,
       }),
       signal: AbortSignal.timeout(10_000),
     });
@@ -186,18 +202,8 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
       throw new Error('Brevo returned a campaign without an ID.');
     }
 
-    const sendResponse = await fetch(`https://api.brevo.com/v3/emailCampaigns/${campaign.id}/sendNow`, {
-      method: 'POST',
-      headers: { 'api-key': apiKey },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!sendResponse.ok) {
-      const detail = (await sendResponse.text()).slice(0, 300);
-      return fail(`Brevo creó la campaña ${campaign.id} pero rechazó enviarla (HTTP ${sendResponse.status}): ${detail}`);
-    }
-
-    console.info('Daily Santander weather campaign sent.', { date: today, campaignId: campaign.id });
-    return jsonResponse({ sent: true, date: today, rainProbability: Math.round(maxRain) });
+    console.info('Daily Santander weather campaign scheduled.', { date: today, scheduledAt, campaignId: campaign.id });
+    return jsonResponse({ scheduled: true, date: today, scheduledAt, rainProbability: Math.round(maxRain) });
   } catch (error) {
     return fail(`Error inesperado: ${error instanceof Error ? error.message : String(error)}`);
   }
