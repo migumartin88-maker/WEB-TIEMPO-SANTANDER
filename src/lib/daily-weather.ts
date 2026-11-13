@@ -29,6 +29,10 @@ function localDate(date: Date): string {
 // before delivery (06:xx in Santander) and Brevo sends the campaign at the exact time.
 const PREPARE_HOUR = '06';
 const DELIVERY_TIME = '07:30:00';
+// Hours of the day the email looks at (local time, inclusive): from delivery until night,
+// so rain forecast for hours already past (e.g. midnight) does not trigger the warning.
+const FIRST_HOUR = 7;
+const LAST_HOUR = 23;
 
 function isLocalPrepareHour(date: Date): boolean {
   return new Intl.DateTimeFormat('en-GB', {
@@ -142,7 +146,9 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
 
     const todayProbabilities = times.flatMap((time: unknown, index: number) => {
       const probability = probabilities[index];
-      return typeof time === 'string' && time.startsWith(`${today}T`) && typeof probability === 'number'
+      const hour = typeof time === 'string' ? Number(time.slice(11, 13)) : NaN;
+      return typeof time === 'string' && time.startsWith(`${today}T`) && hour >= FIRST_HOUR && hour <= LAST_HOUR
+        && typeof probability === 'number'
         ? [probability]
         : [];
     });
@@ -165,7 +171,7 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
           <main style="max-width:560px;margin:0 auto;padding:28px;background:#fff;border-radius:12px">
             <p style="color:#75827b;font-size:13px">AVISO DEL TIEMPO · SANTANDER</p>
             <h1 style="font-size:24px">${escapeHtml(headline)}</h1>
-            <p>La probabilidad máxima de lluvia prevista para hoy es del <strong>${Math.round(maxRain)}%</strong>.</p>
+            <p>La probabilidad máxima de lluvia prevista para hoy entre las 7:00 y las 23:00 es del <strong>${Math.round(maxRain)}%</strong>.</p>
             <p>Recibes este mensaje porque te suscribiste al aviso diario del tiempo de Santander.</p>
             <p style="margin-top:28px;font-size:12px;color:#75827b">
               <a href="{{ unsubscribe }}" style="color:#245649">Darme de baja</a>
