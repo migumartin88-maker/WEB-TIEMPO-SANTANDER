@@ -29,10 +29,12 @@ function localDate(date: Date): string {
 // before delivery (06:xx in Santander) and Brevo sends the campaign at the exact time.
 const PREPARE_HOUR = '06';
 const DELIVERY_TIME = '07:30:00';
-// Hours of the day the email looks at (local time, inclusive): from delivery until night,
-// so rain forecast for hours already past (e.g. midnight) does not trigger the warning.
+// The email answers one question: do I take the umbrella when I leave home for work?
+// It only looks at the morning commute (hourly values 07:00, 08:00 and 09:00, local time).
 const FIRST_HOUR = 7;
-const LAST_HOUR = 23;
+const LAST_HOUR = 9;
+const WINDOW_LABEL = 'de 7:30 a 9:30';
+const SITE_URL = 'https://sacoparaguas.vercel.app/?utm_source=brevo&utm_medium=email&utm_campaign=aviso-diario';
 
 function isLocalPrepareHour(date: Date): boolean {
   return new Intl.DateTimeFormat('en-GB', {
@@ -159,11 +161,14 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
     const maxRain = Math.max(...todayProbabilities);
     const rainExpected = maxRain >= RAIN_THRESHOLD;
     const subject = rainExpected
-      ? 'Hoy puede llover en Santander'
-      : 'Hoy pinta buen tiempo en Santander';
+      ? '☂️ Sal de casa con paraguas'
+      : '😎 Hoy puedes salir sin paraguas';
     const headline = rainExpected
-      ? 'Hoy puede llover en Santander'
-      : 'Hoy pinta buen tiempo en Santander';
+      ? 'Llévate el paraguas al salir de casa'
+      : 'Hoy puedes salir sin paraguas';
+    const advice = rainExpected
+      ? 'Es probable que te mojes de camino al trabajo.'
+      : 'En principio llegas seco al trabajo. Aunque en Santander nunca se sabe…';
     const content = `
       <!doctype html>
       <html lang="es">
@@ -171,7 +176,11 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
           <main style="max-width:560px;margin:0 auto;padding:28px;background:#fff;border-radius:12px">
             <p style="color:#75827b;font-size:13px">AVISO DEL TIEMPO · SANTANDER</p>
             <h1 style="font-size:24px">${escapeHtml(headline)}</h1>
-            <p>La probabilidad máxima de lluvia prevista para hoy entre las 7:00 y las 23:00 es del <strong>${Math.round(maxRain)}%</strong>.</p>
+            <p>🚶 Salida de casa (${WINDOW_LABEL}): probabilidad de lluvia de hasta el <strong>${Math.round(maxRain)}%</strong>.</p>
+            <p>${escapeHtml(advice)}</p>
+            <p style="margin:24px 0">
+              <a href="${SITE_URL}" style="display:inline-block;padding:12px 18px;background:#245649;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold">¿Sales a otra hora? Mira tu tramo</a>
+            </p>
             <p>Recibes este mensaje porque te suscribiste al aviso diario del tiempo de Santander.</p>
             <p style="margin-top:28px;font-size:12px;color:#75827b">
               <a href="{{ unsubscribe }}" style="color:#245649">Darme de baja</a>
@@ -189,7 +198,7 @@ export async function sendDailyWeather(request: Request): Promise<Response> {
       body: JSON.stringify({
         name: `Aviso del tiempo Santander ${today}`,
         subject,
-        previewText: `${headline}. Probabilidad máxima de lluvia: ${Math.round(maxRain)}%.`,
+        previewText: `Salida de casa ${WINDOW_LABEL}: lluvia de hasta el ${Math.round(maxRain)}%.`,
         sender: { name: senderName, email: senderEmail },
         recipients: { listIds: [listId] },
         htmlContent: content,
