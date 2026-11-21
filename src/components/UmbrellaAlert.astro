@@ -134,7 +134,7 @@ const {
     <div class="share-actions">
       <a
         class="share-whatsapp"
-        href="https://wa.me/?text=%C2%BFSaco%20paraguas%20hoy%3F%20%E2%98%82%EF%B8%8F%20Mira%20la%20lluvia%20y%20el%20viento%20en%20Santander%20por%20tramos%3A%20https%3A%2F%2Fsacoparaguas.vercel.app%2F"
+        href="https://wa.me/?text=%C2%BFSaco%20paraguas%20hoy%3F%20%E2%98%82%EF%B8%8F%20Mira%20la%20lluvia%20y%20el%20viento%20en%20Santander%20por%20tramos%3A%20https%3A%2F%2Fwww.sacoparaguas.es%2F"
         target="_blank"
         rel="noopener"
       >Compartir por WhatsApp</a>
@@ -757,10 +757,10 @@ const {
   document.querySelectorAll<HTMLButtonElement>('[data-copy-link]').forEach((button) => {
     button.addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText('https://sacoparaguas.vercel.app/');
+        await navigator.clipboard.writeText('https://www.sacoparaguas.es/');
         button.textContent = '¡Copiado!';
       } catch {
-        button.textContent = 'sacoparaguas.vercel.app';
+        button.textContent = 'www.sacoparaguas.es';
       }
       setTimeout(() => { button.textContent = 'Copiar enlace'; }, 2500);
     });

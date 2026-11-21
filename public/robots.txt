@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://sacoparaguas.vercel.app/sitemap.xml
+Sitemap: https://www.sacoparaguas.es/sitemap.xml
