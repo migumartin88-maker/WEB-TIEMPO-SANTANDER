@@ -34,7 +34,7 @@ const DELIVERY_TIME = '07:30:00';
 const FIRST_HOUR = 7;
 const LAST_HOUR = 9;
 const WINDOW_LABEL = 'de 7:30 a 9:30';
-const SITE_URL = 'https://sacoparaguas.vercel.app/?utm_source=brevo&utm_medium=email&utm_campaign=aviso-diario';
+const SITE_URL = 'https://www.sacoparaguas.es/?utm_source=brevo&utm_medium=email&utm_campaign=aviso-diario';
 
 function isLocalPrepareHour(date: Date): boolean {
   return new Intl.DateTimeFormat('en-GB', {
